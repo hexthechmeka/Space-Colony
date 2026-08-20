@@ -1,0 +1,43 @@
+/* 자동 분리된 밸런스 데이터 — 이 파일의 수치만 고쳐도 밸런스가 바뀝니다 */
+export default {
+  tech: {
+    ship: [
+      { id:'warp',   name:'항속 기관',   max:3, cost:l=>({fuel:Math.round(70*Math.pow(2.1,l))}),
+        desc:l=>`도달 가능 행성 ${l+1}개`, note:'새 행성 항로 개방' },
+      { id:'scan',   name:'장거리 정찰', max:3, cost:l=>({fuel:Math.round(45*Math.pow(1.9,l)), alloy:l*4}),
+        desc:l=>`재공격 경보 유예 +${l*2}분`, note:'적 접근을 더 일찍 포착' },
+      { id:'armor',  name:'모선 장갑',   max:5, cost:l=>({alloy:Math.round(8*Math.pow(1.7,l)), scrap:Math.round(120*Math.pow(1.5,l))}),
+        desc:l=>`모선 내구 ${600+l*260}`, note:'요격 이벤트 생존력' },
+      { id:'hangar', name:'격납고',      max:3, cost:l=>({scrap:Math.round(260*Math.pow(2.0,l)), alloy:Math.round(6*Math.pow(2,l))}),
+        desc:l=>`전초기지 ${2+l}곳 유지`, note:'동시 운영 한도' },
+      { id:'quarters',name:'생활 구역',  max:4, cost:l=>({scrap:Math.round(200*Math.pow(1.9,l)), fuel:Math.round(30*Math.pow(1.7,l))}),
+        desc:l=>`승무원 정원 ${6+l*2}명`, note:'모집 가능 인원' },
+      { id:'medbay', name:'의무실',      max:3, cost:l=>({scrap:Math.round(240*Math.pow(1.85,l)), alloy:Math.round(5*Math.pow(1.9,l))}),
+        desc:l=>`부상 회복 ${Math.round(15*Math.pow(0.75,l))}분`, note:'전투 불능 대원 복귀 속도' },
+    ],
+    outpost: [
+      { id:'turret', name:'자동 포탑',   max:4, cost:l=>({scrap:Math.round(90*Math.pow(1.8,l))}),
+        desc:l=>`배치 ${l}기 · 화력 ×${(1+l*0.15).toFixed(2)}`, note:'준비 시간에 설치' },
+      { id:'relay',  name:'자동 전송',   max:3, cost:l=>({scrap:Math.round(200*Math.pow(2.0,l)), alloy:Math.round(4*Math.pow(2.2,l))}),
+        desc:l=>l?`저장고 무시, 효율 ${[0,60,80,100][l]}%`:'수동 회수 필요', note:'접속 종료 중에도 전송' },
+      { id:'drill',  name:'회수 속도',   max:5, cost:l=>({scrap:Math.round(70*Math.pow(1.75,l))}),
+        desc:l=>`생산량 ×${(1+l*0.28).toFixed(2)}`, note:'모든 기지에 적용' },
+      { id:'silo',   name:'저장고',      max:5, cost:l=>({scrap:Math.round(60*Math.pow(1.7,l))}),
+        desc:l=>`용량 ×${(1+l*0.5).toFixed(1)}`, note:'가득 차면 생산 정지' },
+      { id:'wall',   name:'외곽 방벽',   max:3, cost:l=>({scrap:Math.round(140*Math.pow(1.9,l))}),
+        desc:l=>`거점 내구 ${300+l*160}`, note:'방어전 거점 체력' },
+    ],
+    trooper: [
+      { id:'arsenal',name:'병기고',      max:3, cost:l=>({scrap:Math.round(150*Math.pow(1.9,l)), alloy:Math.round(5*Math.pow(2,l))}),
+        desc:l=>['증기 소총','+ 파쇄 산탄총','+ 중기관총','+ 화염 방사기'][l], note:'분대 무장 해금' },
+      { id:'power',  name:'화력 조정',   max:5, cost:l=>({scrap:Math.round(100*Math.pow(1.7,l))}),
+        desc:l=>`피해 ×${(1+l*0.22).toFixed(2)}`, note:'분대 전원' },
+      { id:'plate',  name:'방탄 외피',   max:5, cost:l=>({scrap:Math.round(90*Math.pow(1.7,l)), alloy:l*2}),
+        desc:l=>`대원 체력 ×${(1+l*0.25).toFixed(2)}`, note:'쓰러져도 작전 후 복귀' },
+      { id:'kit',    name:'장구류',      max:3, cost:l=>({scrap:Math.round(130*Math.pow(1.8,l)), alloy:Math.round(3*Math.pow(2,l))}),
+        desc:l=>['방탄판','+ 각성제·예비 탄창','+ 의료 키트·연막','+ 조준경'][l], note:'보조 장비 해금' },
+      { id:'orbital',name:'관제 강화',   max:3, cost:l=>({alloy:Math.round(6*Math.pow(2.1,l)), fuel:Math.round(30*Math.pow(1.8,l))}),
+        desc:l=>l?`오퍼레이터 지원 ${l}단계`:'미해금', note:'오퍼레이터 능력 위력·재장전' },
+    ],
+  },
+};
