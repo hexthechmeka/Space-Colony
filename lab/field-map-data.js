@@ -11,11 +11,9 @@ function add(type,x,y){
     draw:[template.draw[0]+dx,template.draw[1]+dy,...template.draw.slice(2)],depth:y,
     ...(template.hit?{hit:[x,template.hit[1]+dy,...template.hit.slice(2)]}:{poly:template.poly.map(p=>point(p.x+dx,p.y+dy))})});
 }
-for(const [x,y] of [[350,850],[455,730],[305,650],[580,925],[685,770],[810,650],[910,720],
-  [1150,720],[1300,605],[1240,420],[1510,440],[1640,570],[1520,140]])add('boulder',x,y);
-for(const [x,y] of [[530,620],[620,475],[760,850],[880,360],[1290,795],[1500,660]])add('spire',x,y);
-for(const [x,y] of [[1400,335],[1580,350],[1440,515],[1150,905]])add('boulder',x,y);
-for(const [x,y] of [[1330,245],[1535,235],[1650,430],[1775,365]])add('spire',x,y);
+for(const [x,y] of [[350,850],[305,610],[685,770],[910,720],[1240,420],
+  [1640,570],[1520,140],[1150,905]])add('boulder',x,y);
+for(const [x,y] of [[530,620],[880,360],[1290,795],[1535,235],[1775,365]])add('spire',x,y);
 // New asset contact points are authored separately from the transparent image bounds.
 function naturalFeature(type,x,y){
   const specs={ore:{src:[627,0,627,627],size:[100,100],hit:[30,15],height:.7},
@@ -25,7 +23,7 @@ function naturalFeature(type,x,y){
     atlas:'nature',src:s.src,draw:[x-w/2,y-h*.87,w,h],hit:[x,y,...s.hit],height:s.height,depth:y});
 }
 naturalFeature('ore',430,535);naturalFeature('ore',1185,625);naturalFeature('ore',1595,185);
-for(const [x,y] of [[250,780],[570,800],[720,570],[900,955],[1220,330],[1430,685],[1730,550]])naturalFeature('shrub',x,y);
+for(const [x,y] of [[570,800],[720,570],[900,955],[1220,330],[1730,550]])naturalFeature('shrub',x,y);
 function coverFeature(type,x,y){
   const specs={
     pine:{name:'침엽수',src:[0,0,512,600],size:[100,170],foot:.96,hit:[14,10],vision:4.8,shot:4.8,visionRadius:[34,20]},
@@ -41,12 +39,12 @@ function coverFeature(type,x,y){
     visionHeight:s.vision,shotHeight:s.shot,visionHit:[x,y,...(s.visionRadius??[w*.25,h*.12])],
     ...(type==='grass'?{passable:true,shotHit:[x,y,20,10]}:{}),depth:y});
 }
-for(const [x,y] of [[300,1030],[440,980],[340,490],[460,440],[700,350],[860,890],[1260,980],[1650,710]])coverFeature('pine',x,y);
-for(const [x,y] of [[260,825],[590,360],[780,980],[1270,210],[1510,790],[1790,530]])coverFeature('tree',x,y);
+for(const [x,y] of [[300,1030],[340,490],[700,350],[1260,980],[1650,710]])coverFeature('pine',x,y);
+for(const [x,y] of [[260,825],[780,980],[1270,210],[1790,530]])coverFeature('tree',x,y);
 for(const [x,y] of [[850,550],[1380,650],[1600,920]])coverFeature('geyser',x,y);
 for(const [x,y] of [[590,1050],[940,835],[1580,610]])coverFeature('vent',x,y);
 for(const [x,y] of [[490,625],[1100,620],[1460,300]])coverFeature('crystal',x,y);
-for(const [x,y] of [[215,960],[400,775],[570,530],[760,710],[1070,850],[1400,890],[1800,680]])coverFeature('grass',x,y);
+for(const [x,y] of [[400,775],[570,530],[1070,850],[1400,890],[1800,680]])coverFeature('grass',x,y);
 export const field=createTerrain({width:MAP_WIDTH,height:MAP_HEIGHT,cell:8,
   plateau:plateau.map(shift),ramp:ramp.map(shift),terrainSprites:topSprites,obstacles:objects});
 export const ZONES=[

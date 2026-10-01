@@ -20,7 +20,8 @@
 ## 에셋
 
 - `assets/terrain/drafts/natural-cover-atlas-v1.png`: 추가 자연 엄폐물 여섯 종류. 실제 1536×1024이며 생성 결과에 맞춰 개별 소스 영역과 발 접점을 지정했다.
-- 추가 침엽수 8개, 넓은 수관 나무 6개, 활성 간헐천 3개, 휴면 분화구 3개, 반투명 결정 3개, 낮은 식생 7개.
+- 추가 침엽수 5개, 넓은 수관 나무 4개, 활성 간헐천 3개, 휴면 분화구 3개, 반투명 결정 3개, 낮은 식생 5개.
+- 전체 자연물은 67개에서 44개로 줄였다. 동일 이미지의 접지점 간격은 최소 220 이상이며 이동 공간과 여백을 확보한다.
 
 ## 시야와 탄환 차폐
 
@@ -32,7 +33,7 @@
 - 낮은 식생은 걸어 지나갈 수 있다. 고지대에서 낮은 장애물을 넘는 광선은 통과하고, 여전히 광선보다 높은 장애물은 차단한다.
 - 분대원이 대신 발견한 적은 공격 명령을 공유할 수 있지만, 각 대원의 실제 탄도 차폐와 사거리는 따로 검사한다.
 - 표적 판정 패널은 검증용으로 시야 거리 내 숨은 표적도 차단 상태로 표시한다. 실제 화면의 안개 속 위치를 드러내지는 않는다.
-- 간헐천은 현재 고정 분출 상태다. 분출 주기, 독성 피해, 바람과 가스 확산은 아직 없다.
+- 간헐천은 고정 암석 위에서 픽셀 가스가 상승·확산·소멸한다. 5.8초 주기로 분출 강도가 변하며 위치별로 타이밍을 분산한다. 약한 분출도 지속되므로 기존 고정 시야 차단 판정은 유지한다. 독성 피해와 바람에 따른 판정 변화는 아직 없다.
 
 - `assets/terrain/drafts/regolith-tile-v1.png`: 자연 지면 반복 텍스처.
 - `assets/terrain/drafts/nature-atlas-v1.png`: 투명 배경 암석/광맥/식생/현무암 2×2 시트. 실제 출력 1254×1254, 셀 627×627.
@@ -41,7 +42,7 @@
 
 ## 검증
 
-`node tests/field-map.mjs`, `node tests/field-assets.mjs`, `node tests/terrain-demo.mjs`, `node tests/terrain-weapons.mjs`
+`node tests/field-map.mjs`, `node tests/field-assets.mjs`, `node tests/terrain-demo.mjs`, `node tests/terrain-weapons.mjs`, `node tests/terrain-occlusion.mjs`, `node tests/field-animation.mjs`
 
 ## 생성 요청문
 

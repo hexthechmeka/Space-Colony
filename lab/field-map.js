@@ -2,6 +2,7 @@ import {point,distance,MOVE_SPEED,obstacleLayers} from './terrain-geometry.js';
 import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
 import {WEAPONS,STATUS,VISION_RANGE,createWeaponRules} from './terrain-weapons.js';
 import {createCamera,clampCamera,screenToWorld,zoomCamera} from './field-camera.js';
+import {drawGeyser} from './geyser-animation.js';
 
 const ui=Object.fromEntries(['view','minimap','loading','status','order','crew','weapon','readout','targets',
   'follow','fog','hits','range','zoom','zoomValue','zone','zones','stop','reset'].map(id=>[id,document.getElementById(id)]));
@@ -101,7 +102,7 @@ function drawMini(){
   for(const u of crew){mini.fillStyle=u.color;mini.fillRect(u.x-9,u.y-9,18,18);}
   mini.strokeStyle='#b9dfda';mini.lineWidth=1/sx;mini.strokeRect(camera.x-W/camera.zoom/2,camera.y-H/camera.zoom/2,W/camera.zoom,H/camera.zoom);mini.restore();
 }
-function draw(){
+function draw(now){
   ctx.clearRect(0,0,W,H);ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);
   ctx.drawImage(ground,0,0);
   for(const z of [LZ,SITE]){ctx.strokeStyle='#87bcc5';ctx.lineWidth=1;ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(z.x,z.y,45,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
@@ -109,7 +110,8 @@ function draw(){
     const steps=Math.max(1,Math.ceil(distance(p,q)/4));let previous=field.project(p);
     for(let i=1;i<=steps;i++){const next=field.project(point(p.x+(q.x-p.x)*i/steps,p.y+(q.y-p.y)*i/steps));line(previous,next,'rgba(148,217,203,.45)');previous=next;}p=q;
   }}
-  const items=sprites.map(s=>({depth:s.depth,draw:()=>ctx.drawImage(textures[s.atlas],...s.src,...s.draw)}));
+  const items=sprites.map(s=>({depth:s.depth,draw:()=>s.kind==='geyser'
+    ?drawGeyser(ctx,textures[s.atlas],s,now):ctx.drawImage(textures[s.atlas],...s.src,...s.draw)}));
   crew.forEach(u=>items.push({depth:field.actorDepth(u),draw:()=>actor(u)}));
   enemies.filter(e=>!ui.fog.checked||known(e)).forEach(e=>items.push({depth:field.actorDepth(e),draw:()=>actor(e,true)}));
   items.sort((a,b)=>a.depth-b.depth).forEach(i=>i.draw());
@@ -168,7 +170,7 @@ addEventListener('keydown',e=>{if(!ready||['INPUT','SELECT','BUTTON'].includes(e
 function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(ready){
   const dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
   if(dx||dy){ui.follow.checked=false;camera.x+=dx*400*dt/camera.zoom;camera.y+=dy*400*dt/camera.zoom;}
-  update(dt,now);draw();crew.forEach((u,i)=>ui.crew.children[i].querySelector('small').textContent=WEAPONS[u.weapon].name);
+  update(dt,now);draw(now);crew.forEach((u,i)=>ui.crew.children[i].querySelector('small').textContent=WEAPONS[u.weapon].name);
 }requestAnimationFrame(frame);}requestAnimationFrame(frame);
 async function load(){
   for(const [key,url] of Object.entries({terrain:'../assets/terrain/drafts/terrain-spritesheet-v3.png',nature:'../assets/terrain/drafts/nature-atlas-v1.png',cover:'../assets/terrain/drafts/natural-cover-atlas-v1.png',ground:'../assets/terrain/drafts/regolith-tile-v1.png'})){

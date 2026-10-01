@@ -22,7 +22,7 @@ const foliage=setup(1.2,.2,{visionHit:[200,100,60,35],hit:[200,100,10,7]});
 assert.equal(foliage.terrain.blocked(point(240,100)),false,'canopy is not the movement footprint');
 assert.ok(foliage.terrain.raycast({x:240,y:50,z:1},{x:240,y:150,z:1},'vision'));
 const passable=setup(.2,.2,{passable:true});assert.equal(passable.terrain.blocked(point(200,100)),false);
-assert.equal(field.obstacles.filter(o=>o.atlas==='cover').length,30);
+assert.equal(field.obstacles.filter(o=>o.atlas==='cover').length,23);
 for(const type of ['pine','tree','geyser','vent','crystal','grass'])assert.ok(field.obstacles.some(o=>o.kind===type));
 const atlas=readRgbaPng(new URL('../assets/terrain/drafts/natural-cover-atlas-v1.png',import.meta.url));
 assert.equal(atlas.width,1536);assert.equal(atlas.height,1024);
