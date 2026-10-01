@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {edgeCameraDirection} from '../lab/field-camera.js';
+const at=(x,y,width=960,height=600)=>edgeCameraDirection({x,y,width,height});
+assert.deepEqual(edgeCameraDirection(null),{x:0,y:0});
+assert.deepEqual(at(480,300),{x:0,y:0});
+assert.deepEqual(at(24,24),{x:0,y:0});
+assert.deepEqual(at(-1,300),{x:0,y:0});
+assert.deepEqual(at(961,300),{x:0,y:0});
+assert.deepEqual(at(480,601),{x:0,y:0});
+assert.deepEqual(at(0,300),{x:-1,y:0});
+assert.deepEqual(at(960,300),{x:1,y:0});
+assert.deepEqual(at(480,0),{x:0,y:-1});
+assert.deepEqual(at(480,600),{x:0,y:1});
+assert.equal(at(948,300).x,.5);
+const diagonal=at(960,600);assert.ok(Math.abs(Math.hypot(diagonal.x,diagonal.y)-1)<1e-12);
+assert.equal(at(308,100,320,200).x,.5,'edge band uses CSS pixels on smaller views');
+console.log('PASS: four-direction edge scrolling, gradual speed, diagonal cap, outside/menu exclusion, responsive edge band');

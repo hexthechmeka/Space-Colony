@@ -6,6 +6,14 @@ export function clampCamera(c){
   c.x=Math.max(hw,Math.min(c.width-hw,c.x));c.y=Math.max(hh,Math.min(c.height-hh,c.y));
 }
 export function centerCamera(c,p){c.edgeCenter=true;c.x=p.x;c.y=p.y;clampCamera(c);}
+export function edgeCameraDirection(pointer,margin=24){
+  if(!pointer)return {x:0,y:0};
+  const {x,y,width,height}=pointer;
+  if(x<0||y<0||x>width||y>height)return {x:0,y:0};
+  const axis=(p,size)=>p<margin?-(1-p/margin):p>size-margin?1-(size-p)/margin:0;
+  const dx=axis(x,width),dy=axis(y,height),length=Math.max(1,Math.hypot(dx,dy));
+  return {x:dx/length,y:dy/length};
+}
 export const screenToWorld=(c,p)=>({x:(p.x-c.vw/2)/c.zoom+c.x,y:(p.y-c.vh/2)/c.zoom+c.y});
 export const worldToScreen=(c,p)=>({x:(p.x-c.x)*c.zoom+c.vw/2,y:(p.y-c.y)*c.zoom+c.vh/2});
 export function zoomCamera(c,zoom,anchor={x:c.vw/2,y:c.vh/2}){

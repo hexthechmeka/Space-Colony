@@ -1,7 +1,7 @@
 import {point,distance,MOVE_SPEED,obstacleLayers} from './terrain-geometry.js';
 import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
 import {WEAPONS,STATUS,VISION_RANGE,createWeaponRules} from './terrain-weapons.js';
-import {createCamera,clampCamera,centerCamera,screenToWorld,zoomCamera} from './field-camera.js';
+import {createCamera,clampCamera,centerCamera,edgeCameraDirection,screenToWorld,zoomCamera} from './field-camera.js';
 import {drawGeyser} from './geyser-animation.js';
 import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,FOG_EDGE_BLUR,VISION_REFRESH_MS,terrainObjectVisible} from './field-fog.js';
 
@@ -27,6 +27,7 @@ function line(a,b,color,dash=[]){ctx.strokeStyle=color;ctx.lineWidth=1/camera.zo
 function select(i){selected=i;ui.weapon.value=crew[i].weapon;[...ui.crew.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
 function stop(){target=null;order=null;crew.forEach(u=>u.path=[]);ui.order.textContent='명령 중지';}
 function reset(){
+  edgePointer=null;
   discoveredObjects.clear();visibleObjects.clear();
   crew=CREW_START.map((p,id)=>({...p,id,name:names[id],color:colors[id],eye:1.2,weapon:['pistol','sniper','rifle','pdw'][id],fire:0,path:[]}));
   enemies=ENEMY_START.map((p,id)=>({...p,id,eye:.65,hp:8}));target=null;order=null;shots=[];memory.clearRect(0,0,field.width,field.height);
@@ -151,7 +152,13 @@ for(let i=0;i<4;i++){const b=document.createElement('button');b.onclick=()=>sele
 ui.weapon.onchange=()=>{if(!ready)return;crew[selected].weapon=ui.weapon.value;crew[selected].fire=0;};
 for(const z of ZONES){const b=document.createElement('button');b.textContent=z.name;b.onclick=()=>{ui.follow.checked=false;camera.x=z.x;camera.y=z.y;clampCamera(camera);};ui.zones.appendChild(b);}
 ui.zoom.oninput=()=>zoomCamera(camera,+ui.zoom.value/100);ui.reset.onclick=()=>{if(ready)reset();};ui.stop.onclick=stop;
-const keys=new Set();let drag=null;
+const keys=new Set();let drag=null,edgePointer=null;
+addEventListener('pointermove',e=>{
+  if(e.pointerType!=='mouse'||e.target!==ui.view){edgePointer=null;return;}
+  const r=ui.view.getBoundingClientRect();edgePointer={x:e.clientX-r.left,y:e.clientY-r.top,width:r.width,height:r.height};
+});
+ui.view.onpointerleave=()=>{edgePointer=null;};
+addEventListener('visibilitychange',()=>{if(document.hidden)edgePointer=null;});
 function canvasPoint(e){const r=ui.view.getBoundingClientRect();return point((e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height);}
 function command(p){
   const e=enemies.find(e=>e.hp>0&&known(e)&&distance(field.project(e),point(p.x,p.y+10))<20);
@@ -168,18 +175,19 @@ ui.view.onpointerdown=e=>{
 ui.view.onpointermove=e=>{if(!drag)return;const p=canvasPoint(e);if(distance(p,drag.start)>6){drag.moved=true;ui.follow.checked=false;}
   if(drag.moved){camera.x=drag.x-(p.x-drag.start.x)/camera.zoom;camera.y=drag.y-(p.y-drag.start.y)/camera.zoom;clampCamera(camera);}};
 ui.view.onpointerup=e=>{if(drag?.touch&&!drag.moved)command(screenToWorld(camera,canvasPoint(e)));drag=null;};
-ui.view.onpointercancel=()=>{drag=null;};
+ui.view.onpointercancel=()=>{drag=null;edgePointer=null;};
 ui.view.addEventListener('wheel',e=>{e.preventDefault();zoomCamera(camera,camera.zoom*Math.exp(-e.deltaY*.0012),canvasPoint(e));},{passive:false});
 ui.minimap.onpointerdown=e=>{const r=ui.minimap.getBoundingClientRect();ui.follow.checked=false;camera.x=(e.clientX-r.left)/r.width*field.width;camera.y=(e.clientY-r.top)/r.height*field.height;clampCamera(camera);};
 addEventListener('keydown',e=>{
   if(!ready||e.target.isContentEditable||['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
-  if(e.code==='Space'){e.preventDefault();if(!e.repeat)centerCamera(camera,field.project(crew[selected]));return;}
+  if(e.code==='Space'){e.preventDefault();edgePointer=null;if(!e.repeat)centerCamera(camera,field.project(crew[selected]));return;}
   if(e.target.tagName==='BUTTON')return;keys.add(e.key.toLowerCase());
   if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();
   if(e.key>='1'&&e.key<='4')select(+e.key-1);if(e.key==='Escape')stop();if(e.key.toLowerCase()==='m')ui.follow.checked=!ui.follow.checked;
-});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));addEventListener('blur',()=>{keys.clear();drag=null;});
+});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));addEventListener('blur',()=>{keys.clear();drag=null;edgePointer=null;});
 function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(ready){
-  const dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
+  let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
+  if(!dx&&!dy&&!drag){const edge=edgeCameraDirection(edgePointer);dx=edge.x;dy=edge.y;}
   if(dx||dy){ui.follow.checked=false;camera.x+=dx*400*dt/camera.zoom;camera.y+=dy*400*dt/camera.zoom;}
   update(dt,now);draw(now);crew.forEach((u,i)=>ui.crew.children[i].querySelector('small').textContent=WEAPONS[u.weapon].name);
 }requestAnimationFrame(frame);}requestAnimationFrame(frame);
