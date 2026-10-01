@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {point,distance,ramp,plateau,heightAt,surface,project,pickGround,blocked,
-  canTravel,findPath,advance,raycast,MOVE_SPEED} from '../lab/terrain-geometry.js';
+  canTravel,findPath,advance,raycast,MOVE_SPEED,actorDepth,terrainSprites,obstacles} from '../lab/terrain-geometry.js';
 
 const starts=[point(100,430),point(132,454),point(166,456),point(95,393)];
 const high=point(818,230),behindPillar=point(376,451),frontPillar=point(376,550);
@@ -31,7 +31,19 @@ for(let t=.05;t<1;t+=.1){
   assert.ok(distance(p,pickGround(project(p)))<.001,'render/pick projection must agree');
 }
 assert.ok(distance(high,pickGround(project(high)))<.001);
+const rampDepth=terrainSprites.find(o=>o.id==='ramp').depth;
+const bottom=point((ramp[0].x+ramp[1].x)/2,(ramp[0].y+ramp[1].y)/2);
+const top=point((ramp[2].x+ramp[3].x)/2,(ramp[2].y+ramp[3].y)/2);
+for(const lane of [.15,.5,.85])for(const t of [-.4,-.1,0,.0001,.004,.02,.3,.9]){
+  const p=point(ramp[0].x+(ramp[1].x-ramp[0].x)*lane+(top.x-bottom.x)*t,
+    ramp[0].y+(ramp[1].y-ramp[0].y)*lane+(top.y-bottom.y)*t);
+  assert.ok(actorDepth(p)>rampDepth,'ramp entry must not cover actors before/after gaining height');
+}
+const pillarDepth=obstacles.find(o=>o.id==='pillar').depth;
+assert.ok(actorDepth(behindPillar)<pillarDepth,'pillar must still cover actors behind it');
+assert.ok(actorDepth(frontPillar)>pillarDepth,'actors in front of pillar must remain visible');
+assert.ok(actorDepth(point(735,205))<rampDepth,'ground behind the ramp must remain behind terrain');
 assert.ok(raycast({x:376,y:450,z:1.2},{x:376,y:560,z:1.2}),'pillar must occlude');
 assert.equal(raycast({x:100,y:400,z:1.2},{x:250,y:400,z:1.2}),null,'low boulder should not occlude eye height');
 const u={x:80,y:80,path:[point(300,80)]};advance(u,1);assert.equal(u.x,80+MOVE_SPEED);assert.equal(MOVE_SPEED,86);
-console.log('PASS: 4-person ascent/descent, pillar detour, blocked sides, projection, LOS, speed');
+console.log('PASS: ramp entry layering, pillar occlusion, 4-person ascent/descent, projection, LOS, speed');

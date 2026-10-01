@@ -1,5 +1,5 @@
 import {WIDTH as W,HEIGHT as H,MOVE_SPEED,point,distance,obstacles,terrainSprites,
-  rampScreen,plateauScreen,surface,heightAt,project,pickGround,blocked,
+  rampScreen,plateauScreen,surface,heightAt,actorDepth,project,pickGround,blocked,
   raycast,findPath,advance} from './terrain-geometry.js';
 
 const canvas=document.querySelector('#view'),ctx=canvas.getContext('2d');
@@ -64,7 +64,6 @@ const background=document.createElement('canvas');background.width=W;background.
 const bg=background.getContext('2d');bg.fillStyle='#32382c';bg.fillRect(0,0,W,H);
 for(let y=0;y<H;y+=20)for(let x=0;x<W;x+=20){bg.fillStyle=(x*13+y*7)%23<4?'#293024':'#3d422f';bg.fillRect(x+(x+y)%5,y+(x*3+y)%7,2,2);}
 function drawSprite(o){ctx.drawImage(atlas,...o.src,...o.draw);}
-function depth(u){return heightAt(u)>.01?275+u.y*.001:u.y;}
 function drawActor(u,enemy=false){
   const p=project(u);ctx.save();ctx.translate(Math.round(p.x),Math.round(p.y));
   if(enemy){
@@ -84,8 +83,8 @@ function drawActor(u,enemy=false){
 }
 function drawWorld(){
   const items=[...terrainSprites,...obstacles].map(o=>({depth:o.depth,draw:()=>drawSprite(o)}));
-  for(const u of crew)items.push({depth:depth(u),draw:()=>drawActor(u)});
-  for(const e of enemies)items.push({depth:depth(e),draw:()=>drawActor(e,true)});
+  for(const u of crew)items.push({depth:actorDepth(u),draw:()=>drawActor(u)});
+  for(const e of enemies)items.push({depth:actorDepth(e),draw:()=>drawActor(e,true)});
   items.sort((a,b)=>a.depth-b.depth);items.forEach(o=>o.draw());
 }
 function drawNavigation(){

@@ -36,10 +36,13 @@ export const barriers = [
   [ramp[0],ramp[3]], [ramp[1],ramp[2]],
   ...edges(plateau).slice(0,3), [plateau[3],ramp[2]], [ramp[3],plateau[0]],
 ];
+function rampCoordinates(p) {
+  const across=sub(ramp[1],ramp[0]),along=sub(ramp[3],ramp[0]),offset=sub(p,ramp[0]);
+  const determinant=cross(along,across);
+  return {progress:cross(offset,across)/determinant,lateral:cross(along,offset)/determinant};
+}
 function rampHeight(p) {
-  const bottom=sub(ramp[1],ramp[0]),offset=sub(p,ramp[0]);
-  const progress=cross(offset,bottom)/cross(sub(ramp[3],ramp[0]),bottom);
-  return Math.max(0,Math.min(2,progress*2));
+  return Math.max(0,Math.min(2,rampCoordinates(p).progress*2));
 }
 export function surface(p) {
   if(inPolygon(p,plateau)) return {id:'plateau',z:2};
@@ -47,6 +50,15 @@ export function surface(p) {
   return {id:'ground',z:0};
 }
 export const heightAt = p => surface(p).z;
+export function actorDepth(p) {
+  const {progress,lateral}=rampCoordinates(p);
+  const entryReach=40/distance(ramp[0],ramp[3]),sideMargin=12/distance(ramp[0],ramp[1]);
+  // The entry lip is behind an approaching actor, even before their feet gain height.
+  const inFrontOfEntry=progress<=0&&progress>=-entryReach&&lateral>=-sideMargin&&lateral<=1+sideMargin;
+  const onSurface=surface(p).id!=='ground';
+  const surfaceDepth=Math.max(...terrainSprites.map(o=>o.depth))+1;
+  return onSurface||inFrontOfEntry?surfaceDepth+p.y*.001:p.y;
+}
 export const project = p => point(p.x,p.y-(p.z??heightAt(p))*HEIGHT_PIXELS);
 export const rampScreen = ramp.map((p,i)=>project({...p,z:i<2?0:2}));
 export const plateauScreen = plateau.map(p=>project({...p,z:2}));
