@@ -16,7 +16,8 @@ export const STATUS={unseen:'시야 미확보',far:'사거리 밖',blocked:'사�
 export function createWeaponRules(terrain) {
 const {heightAt,raycast}=terrain;
 const eye=u=>({...u,z:heightAt(u)+(u.eye??.65)});
-const visionRange=u=>VISION_RANGE+(WEAPONS[u.weapon]?.vision??0);
+const visionRange=u=>u.selected&&(u.weapon==='sniper'||u.weapon==='beamSniper')
+  ?WEAPONS[u.weapon].range:VISION_RANGE+(WEAPONS[u.weapon]?.vision??0);
 const canSee=(u,e)=>distance(u,e)<=visionRange(u)&&!raycast(eye(u),eye(e),'vision');
 const muzzle=u=>({...u,z:heightAt(u)+.65});
 const aim=e=>({...e,z:heightAt(e)+.65});

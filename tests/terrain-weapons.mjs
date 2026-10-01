@@ -1,10 +1,23 @@
 import assert from 'node:assert/strict';
-import {WEAPONS,VISION_RANGE,canSee,firingState} from '../lab/terrain-weapons.js';
+import {WEAPONS,VISION_RANGE,canSee,firingState,createWeaponRules} from '../lab/terrain-weapons.js';
+import {createTerrain} from '../lab/terrain-geometry.js';
 
 assert.deepEqual(Object.keys(WEAPONS),['pistol','pdw','rifle','sniper','shotgun','machinegun','beam','beamSniper']);
 assert.equal(WEAPONS.rifle.range,550);assert.equal(WEAPONS.pdw.range,350);assert.equal(WEAPONS.sniper.range,700);
 assert.equal(WEAPONS.rifle.spread,.035);assert.equal(WEAPONS.pdw.spread,.06);
 assert.ok(WEAPONS.pdw.spread>WEAPONS.rifle.spread,'PDW has a wider firing cone than AR');
+const selectedRules=createWeaponRules(createTerrain({obstacles:[]}));
+for(const weapon of ['sniper','beamSniper']){
+  const selectedUser={x:50,y:40,weapon,selected:true};
+  const edge={x:50+WEAPONS[weapon].range,y:40};
+  assert.equal(selectedRules.visionRange(selectedUser),WEAPONS[weapon].range);
+  assert.equal(selectedRules.canSee(selectedUser,edge),true,'selected sniper sees to the range boundary');
+  assert.equal(selectedRules.canSee(selectedUser,{...edge,x:edge.x+.01}),false);
+  selectedUser.selected=false;
+  assert.equal(selectedRules.visionRange(selectedUser),VISION_RANGE+WEAPONS[weapon].vision);
+  assert.equal(selectedRules.canSee(selectedUser,edge),false,'deselection restores normal vision');
+}
+assert.equal(selectedRules.visionRange({weapon:'rifle',selected:true}),VISION_RANGE,'non-sniper selection has no vision bonus');
 const u={x:50,y:40,eye:1.2};
 for(const [weapon,w] of Object.entries(WEAPONS)){
   const user={...u,weapon};

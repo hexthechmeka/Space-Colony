@@ -36,7 +36,7 @@ ctx.imageSmoothingEnabled=false;mini.imageSmoothingEnabled=false;
 ui.view.style.cursor='crosshair';
 function poly(c,points){c.beginPath();points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();}
 function line(a,b,color,dash=[],width=1){ctx.strokeStyle=color;ctx.lineWidth=width/camera.zoom;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);}
-function select(i){manual=null;selected=i;ui.weapon.value=crew[i].weapon;skillSlider.value=crew[i].skill*100;[...ui.crew.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
+function select(i){manual=null;selected=i;crew.forEach(u=>{u.selected=u.id===i;});visionAt=-Infinity;knownCache.clear();hudAt=-Infinity;ui.weapon.value=crew[i].weapon;skillSlider.value=crew[i].skill*100;[...ui.crew.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
 function stop(){target=null;manual=null;order=null;squadMovement.stop(crew);crew.forEach(combat.cancel);ui.order.textContent='명령 중지';}
 function reset(){
   edgePointer=null;spaceHeld=false;knownCache.clear();hudAt=-Infinity;
@@ -53,7 +53,7 @@ function move(destination){
 }
 function refreshVision(now){
   if(now-visionAt<VISION_REFRESH_MS)return;visionAt=now;
-  const stamp=crew.map(u=>`${u.x.toFixed(1)},${u.y.toFixed(1)},${u.eye},${u.weapon}`).join(';');
+  const stamp=crew.map(u=>`${u.x.toFixed(1)},${u.y.toFixed(1)},${u.eye},${u.weapon},${u.selected}`).join(';');
   if(stamp===visionStamp)return;visionStamp=stamp;
   visibleObjects.clear();
   for(const object of [...field.terrainSprites,...field.obstacles]){
