@@ -25,6 +25,7 @@
 
 ## 시야와 탄환 차폐
 
+- 미탐색 지역은 불투명 검정, 탐색했지만 현재 시야가 없는 지역은 66% 회색 덮개, 현재 시야 안은 원래 화면으로 표시한다. 탐색 기록은 분대의 시야로만 누적하며 카메라 이동으로 해제되지 않는다. 전장과 미니맵에 같은 안개를 사용하고 초기화 시 탐색 기록도 지운다.
 - 초록: 보이고 사격 경로 확보. 주황: 보이지만 사격 경로 차폐. 빨강: 선택 대원 시야 차단.
 - 무기 사거리는 별도로 판단한다. 경로가 열려 있어도 사거리 밖이면 발사하지 않는다.
 - `visionHeight`, `shotHeight`는 장애물이 서 있는 지면 기준 높이다. 시야는 눈에서 눈으로, 사격은 총구에서 표적 몸통으로 검사한다.
@@ -42,7 +43,7 @@
 
 ## 검증
 
-`node tests/field-map.mjs`, `node tests/field-assets.mjs`, `node tests/terrain-demo.mjs`, `node tests/terrain-weapons.mjs`, `node tests/terrain-occlusion.mjs`, `node tests/field-animation.mjs`
+`node tests/field-map.mjs`, `node tests/field-assets.mjs`, `node tests/terrain-demo.mjs`, `node tests/terrain-weapons.mjs`, `node tests/terrain-occlusion.mjs`, `node tests/field-animation.mjs`, `node tests/field-fog.mjs`
 
 ## 생성 요청문
 

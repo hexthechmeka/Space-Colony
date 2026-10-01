@@ -3,6 +3,7 @@ import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
 import {WEAPONS,STATUS,VISION_RANGE,createWeaponRules} from './terrain-weapons.js';
 import {createCamera,clampCamera,screenToWorld,zoomCamera} from './field-camera.js';
 import {drawGeyser} from './geyser-animation.js';
+import {drawFog,MEMORY_COLOR} from './field-fog.js';
 
 const ui=Object.fromEntries(['view','minimap','loading','status','order','crew','weapon','readout','targets',
   'follow','fog','hits','range','zoom','zoomValue','zone','zones','stop','reset'].map(id=>[id,document.getElementById(id)]));
@@ -49,11 +50,8 @@ function refreshVision(now){
     for(let i=0;i<96;i++){const angle=i*Math.PI*2/96,to={x:u.x+Math.cos(angle)*VISION_RANGE,y:u.y+Math.sin(angle)*VISION_RANGE,z:from.z};
       const hit=field.raycast(from,to,'vision');points.push(point((hit??to).x,(hit??to).y));}
     return points;});
-  memory.fillStyle='#ffffff';for(const points of visions){poly(memory,points);memory.fill();}
-  fogCtx.globalCompositeOperation='source-over';fogCtx.clearRect(0,0,field.width,field.height);
-  fogCtx.fillStyle='rgba(3,9,11,.96)';fogCtx.fillRect(0,0,field.width,field.height);
-  fogCtx.globalCompositeOperation='destination-out';fogCtx.globalAlpha=.35;fogCtx.drawImage(explored,0,0);fogCtx.globalAlpha=1;
-  for(const points of visions){poly(fogCtx,points);fogCtx.fill();}fogCtx.globalCompositeOperation='source-over';
+  memory.fillStyle=MEMORY_COLOR;for(const points of visions){poly(memory,points);memory.fill();}
+  drawFog(fogCtx,explored,visions,field.width,field.height);
 }
 function update(dt,now){
   crew.forEach(u=>{u.fire=Math.max(0,u.fire-dt);field.advance(u,dt);});
