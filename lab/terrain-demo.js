@@ -1,6 +1,7 @@
 import {WIDTH as W,HEIGHT as H,MOVE_SPEED,point,distance,obstacles,terrainSprites,
   rampScreen,plateauScreen,surface,heightAt,actorDepth,obstacleLayers,project,pickGround,blocked,
   raycast,findPath,advance} from './terrain-geometry.js';
+import {VISION_RANGE,WEAPONS,STATUS,eye,canSee,firingState} from './terrain-weapons.js';
 
 const canvas=document.querySelector('#view'),ctx=canvas.getContext('2d');
 ctx.imageSmoothingEnabled=false;
@@ -14,17 +15,23 @@ const initialCrew=[
 ];
 let crew=[],enemies=[],selected=0,order=null,attackTarget=null,shots=[],allVision=false,ready=false;
 let last=performance.now(),visionTime=-Infinity,visionShapes=[];
+const weaponSelect=document.createElement('select');weaponSelect.id='weaponSelect';
+weaponSelect.setAttribute('aria-label','무기군');
+weaponSelect.style.cssText='width:100%;margin-top:8px;padding:7px;background:#0b1211;color:#9af5d7;border:1px solid #34534a';
+for(const [id,w] of Object.entries(WEAPONS)){const option=document.createElement('option');option.value=id;option.textContent=w.name;weaponSelect.appendChild(option);}
+ui.memberInfo.after(weaponSelect);
+const weaponInfo=document.createElement('div');weaponInfo.className='readout';weaponSelect.after(weaponInfo);
+const targetStates=document.createElement('div');targetStates.className='readout';ui.targetInfo.after(targetStates);
+weaponSelect.onchange=()=>{if(!ready)return;crew[selected].weapon=weaponSelect.value;crew[selected].fire=0;};
 const atlas=new Image();
-function selectCrew(i){selected=i;visionTime=-Infinity;[...ui.crewSelect.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
+function selectCrew(i){selected=i;visionTime=-Infinity;if(crew[i])weaponSelect.value=crew[i].weapon;[...ui.crewSelect.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
 function reset(){
-  crew=initialCrew.map((u,id)=>({...u,id,path:[],fire:0,stuck:false}));
+  crew=initialCrew.map((u,id)=>({...u,id,weapon:['pistol','sniper','rifle','pdw'][id],path:[],fire:0,stuck:false}));
   enemies=[{x:282,y:240},{x:505,y:188},{x:788,y:396},{x:818,y:228}]
     .map((e,id)=>({...e,id,hp:5,path:[],alert:false,repath:0}));
   selectCrew(0);order=null;attackTarget=null;shots=[];visionTime=-Infinity;
   ui.targetInfo.textContent='이동 대기';
 }
-const eye=(u,z=u.eye??.65)=>({...u,z:heightAt(u)+z});
-const canSee=(u,e)=>distance(u,e)<330&&!raycast(eye(u),eye(e,.65));
 const spotters=e=>crew.filter(u=>canSee(u,e));
 function moveGroup(target){
   attackTarget=null;order=target;const used=[],area=surface(target).id;let failed=0;
@@ -51,10 +58,11 @@ function update(dt){
     if(e.alert&&distance(e,closest)>148){if(e.repath<=0){e.repath=1.5;e.path=findPath(e,closest)??[];}advance(e,dt,25);}else e.path=[];
   }
   if(attackTarget?.hp>0)for(const u of crew){
-    if(u.fire>0||!canSee(u,attackTarget))continue;u.fire=.65;
-    const a=eye(u,1),b=eye(attackTarget,.65),hit=raycast(a,b);
-    shots.push({a:project(a),b:project(hit??b),life:.2,blocked:!!hit});
-    if(!hit&&--attackTarget.hp<=0){ui.targetInfo.textContent='표적 제압';attackTarget=null;break;}
+    const state=firingState(u,attackTarget),weapon=WEAPONS[u.weapon];
+    if(u.fire>0||state.status!=='ready')continue;u.fire=weapon.interval;
+    shots.push({a:project(state.a),b:project(state.b),life:weapon.mode==='beam'?.11:.08,beam:weapon.mode==='beam'});
+    attackTarget.hp=Math.max(0,attackTarget.hp-weapon.damage);
+    if(attackTarget.hp<=0){ui.targetInfo.textContent='표적 제압';attackTarget=null;break;}
   }
   shots=shots.filter(s=>(s.life-=dt)>0);
 }
@@ -112,21 +120,36 @@ function drawGrid(){
 function drawVision(now){
   if(now-visionTime>100){visionTime=now;visionShapes=(allVision?crew:[crew[selected]]).map(u=>{
     const from=eye(u),points=[];
-    for(let i=0;i<192;i++){const a=i*Math.PI*2/192,to={x:u.x+Math.cos(a)*330,y:u.y+Math.sin(a)*330,z:from.z};
+    for(let i=0;i<192;i++){const a=i*Math.PI*2/192,to={x:u.x+Math.cos(a)*VISION_RANGE,y:u.y+Math.sin(a)*VISION_RANGE,z:from.z};
       const hit=raycast(from,to),end=hit??to;points.push(project({...end,z:0}));}
     return {u,points};
   });}
   ctx.save();for(const {points} of visionShapes){polygon(points);ctx.fillStyle=allVision?'rgba(76,218,169,.055)':'rgba(76,218,169,.10)';ctx.fill();ctx.strokeStyle='rgba(96,238,190,.20)';ctx.lineWidth=1;ctx.stroke();}ctx.restore();
 }
-function drawShotLines(){const u=crew[selected];for(const e of enemies){if(e.hp<=0||distance(u,e)>330)continue;const from=eye(u,1),to=eye(e,.65),hit=raycast(from,to);line(project(from),project(hit??to),hit?'#ffb85c':'rgba(255,216,139,.38)',hit?[]:[3,5]);if(hit){const p=project(hit);ctx.fillStyle='#ffbd67';ctx.fillRect(p.x-2,p.y-2,4,4);}}}
+function drawShotLines(){
+  const u=crew[selected],weapon=WEAPONS[u.weapon],foot=project(u);
+  ctx.strokeStyle='rgba(96,181,242,.5)';ctx.lineWidth=1;ctx.setLineDash([6,5]);
+  ctx.beginPath();ctx.arc(foot.x,foot.y,weapon.range,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  for(const e of enemies){
+    if(e.hp<=0||!canSee(u,e))continue;
+    const state=firingState(u,e);
+    if(state.status==='far'){line(foot,project(e),'rgba(122,150,175,.5)',[2,7]);continue;}
+    line(project(state.a),project(state.hit??state.b),state.hit?'#ffb85c':'#6bd9b4',state.hit?[]:[3,5]);
+    if(state.hit){const p=project(state.hit);ctx.fillStyle='#ffbd67';ctx.fillRect(p.x-2,p.y-2,4,4);}
+  }
+}
 function draw(now){
   ctx.clearRect(0,0,W,H);ctx.drawImage(background,0,0);
   if(ui.showVision.checked)drawVision(now);
   drawNavigation();drawWorld();
   if(ui.showGrid.checked)drawGrid();if(ui.showHits.checked)drawHitboxes();if(ui.showShot.checked)drawShotLines();
-  for(const s of shots)line(s.a,s.b,s.blocked?'#ffb95d':'#e9e29a');
+  for(const s of shots){line(s.a,s.b,s.beam?'#77d9ff':'#e9e29a');if(s.beam)line(point(s.a.x+1,s.a.y),point(s.b.x+1,s.b.y),'rgba(119,217,255,.4)');}
   const u=crew[selected],count=enemies.filter(e=>e.hp>0&&canSee(u,e)).length;
-  ui.memberInfo.textContent=`${u.name} · ${u.role} / 고도 ${heightAt(u).toFixed(1)} / 표적 ${count}`;
+  ui.memberInfo.textContent=`${u.name} · ${WEAPONS[u.weapon].name} / 고도 ${heightAt(u).toFixed(1)} / 표적 ${count}`;
+  const weapon=WEAPONS[u.weapon];
+  weaponInfo.textContent=`시야 ${VISION_RANGE} / 사거리 ${weapon.range} / 발사 간격 ${weapon.interval}초`;
+  targetStates.textContent=enemies.filter(e=>e.hp>0).map(e=>`표적 ${e.id+1}: ${STATUS[firingState(u,e).status]} (${Math.round(distance(u,e))})`).join('\n');
+  targetStates.style.whiteSpace='pre-line';
   ui.sceneStatus.textContent=`${crew.filter(u=>u.path.length).length}명 이동 중 · 속도 ${MOVE_SPEED} · 표적 ${enemies.filter(e=>e.hp>0&&spotters(e).length).length}/${enemies.filter(e=>e.hp>0).length}`;
 }
 function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(ready){update(dt);draw(now);}requestAnimationFrame(frame);}
