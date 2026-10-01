@@ -1,4 +1,5 @@
-import {point,distance,MOVE_SPEED,obstacleLayers} from './terrain-geometry.js';
+import {point,distance,obstacleLayers} from './terrain-geometry.js';
+import {createSquadMovement} from './squad-movement.js';
 import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
 import {WEAPONS,STATUS,VISION_RANGE,createWeaponRules} from './terrain-weapons.js';
 import {createCamera,clampCamera,centerCamera,edgeCameraDirection,screenToWorld,zoomCamera} from './field-camera.js';
@@ -13,6 +14,7 @@ const contactColors={clear:'#76ddba',visible:'#e3b562',hidden:'#e18884'};
 const legend=document.createElement('div');legend.style.cssText='font-size:11px;margin-top:9px';
 for(const [state,label] of Object.entries(contactLabels)){const row=document.createElement('div');row.textContent=label;row.style.color=contactColors[state];legend.appendChild(row);}ui.targets.after(legend);
 const camera=createCamera(field.width,field.height,W,H),rules=createWeaponRules(field);
+const squadMovement=createSquadMovement(field);
 const textures={},names=['반 하이드','오르타','두골','마르타'],colors=['#dfc56e','#8fc879','#d59b62','#90a6b6'];
 let crew=[],enemies=[],selected=0,target=null,order=null,shots=[],ready=false,last=performance.now(),visionAt=0,visions=[];
 const explored=document.createElement('canvas');explored.width=field.width;explored.height=field.height;
@@ -25,7 +27,7 @@ ctx.imageSmoothingEnabled=false;mini.imageSmoothingEnabled=false;
 function poly(c,points){c.beginPath();points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();}
 function line(a,b,color,dash=[]){ctx.strokeStyle=color;ctx.lineWidth=1/camera.zoom;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);}
 function select(i){selected=i;ui.weapon.value=crew[i].weapon;[...ui.crew.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
-function stop(){target=null;order=null;crew.forEach(u=>u.path=[]);ui.order.textContent='명령 중지';}
+function stop(){target=null;order=null;squadMovement.stop(crew);ui.order.textContent='명령 중지';}
 function reset(){
   edgePointer=null;
   discoveredObjects.clear();visibleObjects.clear();
@@ -36,15 +38,7 @@ function reset(){
 }
 const known=e=>crew.some(u=>rules.canSee(u,e));
 function move(destination){
-  target=null;order=destination;const used=[],area=field.surface(destination).id;let failed=0;
-  for(const u of crew){
-    const [ox,oy]=[[-14,-14],[14,-14],[-14,14],[14,14]][u.id],desired=point(destination.x+ox,destination.y+oy),candidates=[];
-    for(let y=-48;y<=48;y+=8)for(let x=-48;x<=48;x+=8){const p=point(destination.x+x,destination.y+y);
-      if(field.surface(p).id===area&&!field.blocked(p)&&used.every(q=>distance(p,q)>=18))candidates.push(p);}
-    candidates.sort((a,b)=>distance(a,desired)-distance(b,desired));let path=null;
-    for(const p of candidates.slice(0,24)){path=field.findPath(u,p);if(path?.length){used.push(path.at(-1));break;}}
-    u.path=path??[];u.stuck=false;if(!path)failed++;
-  }
+  target=null;order=destination;const failed=squadMovement.order(crew,destination);
   ui.order.textContent=failed?`${failed}명 경로 없음`:'분대 이동';
 }
 function refreshVision(now){
@@ -62,7 +56,7 @@ function refreshVision(now){
   drawFog(fogCtx,explored,visions,field.width,field.height);
 }
 function update(dt,now){
-  crew.forEach(u=>{u.fire=Math.max(0,u.fire-dt);field.advance(u,dt);});
+  squadMovement.update(crew,dt);crew.forEach(u=>{u.fire=Math.max(0,u.fire-dt);});
   if(target?.hp>0){const spotted=known(target);for(const u of crew){
     const state=rules.firingState(u,target,spotted),w=WEAPONS[u.weapon];if(u.fire>0||state.status!=='ready')continue;
     u.fire=w.interval;target.hp=Math.max(0,target.hp-w.damage);shots.push({a:field.project(state.a),b:field.project(state.b),beam:w.mode==='beam',life:w.mode==='beam'?.12:.08});
