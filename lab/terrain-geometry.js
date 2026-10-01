@@ -47,7 +47,10 @@ export function obstacleLayers(o) {
     draw:[x+i,y,1,h],depth:obstacleDepthAt(o,x+i+.5)}));
 }
 // Only the bottom and top ramp edges are portals. Side edges remain impassable.
-export const barriers = [
+export function createTerrain({width=WIDTH,height=HEIGHT,cell=CELL,plateau:top=plateau,ramp:slope=ramp,
+  terrainSprites:sprites=terrainSprites,obstacles:objects=obstacles}={}) {
+const WIDTH=width,HEIGHT=height,CELL=cell,plateau=top,ramp=slope,terrainSprites=sprites,obstacles=objects;
+const barriers = [
   [ramp[0],ramp[3]], [ramp[1],ramp[2]],
   ...edges(plateau).slice(0,3), [plateau[3],ramp[2]], [ramp[3],plateau[0]],
 ];
@@ -59,13 +62,13 @@ function rampCoordinates(p) {
 function rampHeight(p) {
   return Math.max(0,Math.min(2,rampCoordinates(p).progress*2));
 }
-export function surface(p) {
+function surface(p) {
   if(inPolygon(p,plateau)) return {id:'plateau',z:2};
   if(inPolygon(p,ramp)) return {id:'ramp',z:rampHeight(p)};
   return {id:'ground',z:0};
 }
-export const heightAt = p => surface(p).z;
-export function actorDepth(p) {
+const heightAt = p => surface(p).z;
+function actorDepth(p) {
   const [left,,width]=terrainSprites.find(o=>o.id==='ramp').draw;
   const entryY=ramp[0].y+(p.x-ramp[0].x)*(ramp[1].y-ramp[0].y)/(ramp[1].x-ramp[0].x);
   // Actor coordinates are feet: the entry's front half-plane includes its flanks.
@@ -75,10 +78,10 @@ export function actorDepth(p) {
   if(onSurface)return surfaceDepth+p.y*.001;
   return inFrontOfEntry?Math.max(p.y,surfaceDepth+p.y*.001):p.y;
 }
-export const project = p => point(p.x,p.y-(p.z??heightAt(p))*HEIGHT_PIXELS);
-export const rampScreen = ramp.map((p,i)=>project({...p,z:i<2?0:2}));
-export const plateauScreen = plateau.map(p=>project({...p,z:2}));
-export function pickGround(p) {
+const project = p => point(p.x,p.y-(p.z??heightAt(p))*HEIGHT_PIXELS);
+const rampScreen = ramp.map((p,i)=>project({...p,z:i<2?0:2}));
+const plateauScreen = plateau.map(p=>project({...p,z:2}));
+function pickGround(p) {
   if(inPolygon(p,plateauScreen)) return point(p.x,p.y+2*HEIGHT_PIXELS);
   if(inPolygon(p,rampScreen)) {
     const bottom=sub(rampScreen[1],rampScreen[0]);
@@ -87,16 +90,16 @@ export function pickGround(p) {
   }
   return point(p.x,p.y);
 }
-export function insideObstacle(o,p,r=0) {
+function insideObstacle(o,p,r=0) {
   if(o.poly) return inPolygon(p,o.poly)||edges(o.poly).some(([a,b])=>segmentDistance(p,a,b)<r);
   const [x,y,rx,ry]=o.hit;
   return ((p.x-x)/(rx+r))**2+((p.y-y)/(ry+r))**2<=1;
 }
-export function blocked(p,r=RADIUS) {
+function blocked(p,r=RADIUS) {
   return p.x<r||p.y<r||p.x>WIDTH-r||p.y>HEIGHT-r||
     obstacles.some(o=>insideObstacle(o,p,r))||barriers.some(([a,b])=>segmentDistance(p,a,b)<r);
 }
-export function canTravel(a,b,r=RADIUS) {
+function canTravel(a,b,r=RADIUS) {
   const steps=Math.max(1,Math.ceil(distance(a,b)/2));
   let last=heightAt(a);
   for(let i=0;i<=steps;i++) {
@@ -106,7 +109,7 @@ export function canTravel(a,b,r=RADIUS) {
   }
   return true;
 }
-export function raycast(a,b) {
+function raycast(a,b) {
   const steps=Math.max(1,Math.ceil(distance(a,b)/3));
   for(let i=1;i<steps;i++) {
     const t=i/steps,p={x:mix(a.x,b.x,t),y:mix(a.y,b.y,t),z:mix(a.z,b.z,t)};
@@ -144,7 +147,7 @@ function nearby(p,connect) {
   }
   return out.sort((a,b)=>distance(p,center(a))-distance(p,center(b)));
 }
-export function findPath(start,requested) {
+function findPath(start,requested) {
   if(blocked(start))return null;
   const starts=nearby(start,true),ends=nearby(requested,!blocked(requested));
   if(!starts.length||!ends.length)return null;
@@ -161,7 +164,7 @@ export function findPath(start,requested) {
   while(index<raw.length){let far=index;while(far+1<raw.length&&canTravel(anchor,raw[far+1]))far++;route.push(raw[far]);anchor=raw[far];index=far+1;}
   return route;
 }
-export function advance(unit,dt,speed=MOVE_SPEED) {
+function advance(unit,dt,speed=MOVE_SPEED) {
   let remaining=speed*dt;
   while(unit.path.length&&remaining>0){const next=unit.path[0],length=distance(unit,next);if(length<.001){unit.path.shift();continue;}
     const step=Math.min(remaining,length),p=point(mix(unit.x,next.x,step/length),mix(unit.y,next.y,step/length));
@@ -169,3 +172,8 @@ export function advance(unit,dt,speed=MOVE_SPEED) {
     unit.x=p.x;unit.y=p.y;remaining-=step;if(step===length)unit.path.shift();
   }
 }
+return {width,height,cell,plateau,ramp,terrainSprites,obstacles,barriers,surface,heightAt,actorDepth,
+  project,rampScreen,plateauScreen,pickGround,insideObstacle,blocked,canTravel,raycast,findPath,advance};
+}
+export const {barriers,surface,heightAt,actorDepth,project,rampScreen,plateauScreen,pickGround,
+  insideObstacle,blocked,canTravel,raycast,findPath,advance}=createTerrain();
