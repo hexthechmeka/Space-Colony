@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import {WEAPONS,VISION_RANGE,canSee,firingState} from '../lab/terrain-weapons.js';
 
 assert.deepEqual(Object.keys(WEAPONS),['pistol','pdw','rifle','sniper','shotgun','machinegun','beam','beamSniper']);
+assert.equal(WEAPONS.rifle.range,350);assert.equal(WEAPONS.pdw.range,280);
+assert.equal(WEAPONS.rifle.spread,.035);assert.equal(WEAPONS.pdw.spread,.06);
+assert.ok(WEAPONS.pdw.spread>WEAPONS.rifle.spread,'PDW has a wider firing cone than AR');
 const u={x:50,y:40,eye:1.2};
 for(const [weapon,w] of Object.entries(WEAPONS)){
   const user={...u,weapon};
