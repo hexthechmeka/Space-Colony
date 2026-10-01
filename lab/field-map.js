@@ -1,7 +1,7 @@
 import {point,distance,MOVE_SPEED,obstacleLayers} from './terrain-geometry.js';
 import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
 import {WEAPONS,STATUS,VISION_RANGE,createWeaponRules} from './terrain-weapons.js';
-import {createCamera,clampCamera,screenToWorld,zoomCamera} from './field-camera.js';
+import {createCamera,clampCamera,centerCamera,screenToWorld,zoomCamera} from './field-camera.js';
 import {drawGeyser} from './geyser-animation.js';
 import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,FOG_EDGE_BLUR,VISION_REFRESH_MS,terrainObjectVisible} from './field-fog.js';
 
@@ -30,7 +30,7 @@ function reset(){
   discoveredObjects.clear();visibleObjects.clear();
   crew=CREW_START.map((p,id)=>({...p,id,name:names[id],color:colors[id],eye:1.2,weapon:['pistol','sniper','rifle','pdw'][id],fire:0,path:[]}));
   enemies=ENEMY_START.map((p,id)=>({...p,id,eye:.65,hp:8}));target=null;order=null;shots=[];memory.clearRect(0,0,field.width,field.height);
-  camera.x=LZ.x;camera.y=LZ.y;camera.zoom=1;clampCamera(camera);ui.follow.checked=true;ui.zoom.value=100;
+  camera.edgeCenter=false;camera.x=LZ.x;camera.y=LZ.y;camera.zoom=1;clampCamera(camera);ui.follow.checked=true;ui.zoom.value=100;
   select(0);visionAt=-Infinity;ui.order.textContent='착륙 완료';
 }
 const known=e=>crew.some(u=>rules.canSee(u,e));
@@ -108,7 +108,7 @@ function drawMini(){
   mini.strokeStyle='#b9dfda';mini.lineWidth=1/sx;mini.strokeRect(camera.x-W/camera.zoom/2,camera.y-H/camera.zoom/2,W/camera.zoom,H/camera.zoom);mini.restore();
 }
 function draw(now){
-  ctx.clearRect(0,0,W,H);ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#000000';ctx.fillRect(0,0,W,H);ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);
   ctx.drawImage(ground,0,0);
   if(ui.fog.checked)ctx.drawImage(fogCanvas,0,0);
   for(const z of [LZ,SITE]){ctx.strokeStyle='#87bcc5';ctx.lineWidth=1;ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(z.x,z.y,45,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
@@ -162,7 +162,7 @@ function command(p){
 ui.view.oncontextmenu=e=>e.preventDefault();
 ui.view.onpointerdown=e=>{
   if(!ready)return;const p=canvasPoint(e);ui.view.setPointerCapture(e.pointerId);
-  if(e.button===1||keys.has(' ')||e.pointerType==='touch'){drag={p,start:p,x:camera.x,y:camera.y,touch:e.pointerType==='touch',moved:false};return;}
+  if(e.button===1||e.pointerType==='touch'){drag={p,start:p,x:camera.x,y:camera.y,touch:e.pointerType==='touch',moved:false};return;}
   if(e.button===2)move(field.pickGround(screenToWorld(camera,p)));else command(screenToWorld(camera,p));
 };
 ui.view.onpointermove=e=>{if(!drag)return;const p=canvasPoint(e);if(distance(p,drag.start)>6){drag.moved=true;ui.follow.checked=false;}
@@ -171,7 +171,10 @@ ui.view.onpointerup=e=>{if(drag?.touch&&!drag.moved)command(screenToWorld(camera
 ui.view.onpointercancel=()=>{drag=null;};
 ui.view.addEventListener('wheel',e=>{e.preventDefault();zoomCamera(camera,camera.zoom*Math.exp(-e.deltaY*.0012),canvasPoint(e));},{passive:false});
 ui.minimap.onpointerdown=e=>{const r=ui.minimap.getBoundingClientRect();ui.follow.checked=false;camera.x=(e.clientX-r.left)/r.width*field.width;camera.y=(e.clientY-r.top)/r.height*field.height;clampCamera(camera);};
-addEventListener('keydown',e=>{if(!ready||['INPUT','SELECT','BUTTON'].includes(e.target.tagName))return;keys.add(e.key.toLowerCase());
+addEventListener('keydown',e=>{
+  if(!ready||e.target.isContentEditable||['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+  if(e.code==='Space'){e.preventDefault();if(!e.repeat)centerCamera(camera,field.project(crew[selected]));return;}
+  if(e.target.tagName==='BUTTON')return;keys.add(e.key.toLowerCase());
   if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();
   if(e.key>='1'&&e.key<='4')select(+e.key-1);if(e.key==='Escape')stop();if(e.key.toLowerCase()==='m')ui.follow.checked=!ui.follow.checked;
 });addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));addEventListener('blur',()=>{keys.clear();drag=null;});
