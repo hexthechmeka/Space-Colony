@@ -58,11 +58,11 @@ export function createFieldCombat(terrain,{random=Math.random,known=()=>true}={}
     g.biasTime-=dt;if(g.biasTime<=0){g.biasTime=.3;g.biasTarget=(random()*2-1)*.1*(1-(u.skill??.65));}
     g.bias+=(g.biasTarget-g.bias)*Math.min(1,dt*10);
     const moving=(u.moveSpeed??0)>4;
-    const error=g.bias*(1.5-g.aim*.8)*(moving?2.5:1);
+    const error=g.bias*(1.5-g.aim*.8)*(moving&&w.mode==='bullet'?2.5:1);
     if(w.mode==='channel'){
       if(!g.channel){if(g.cooldown>0)return shots;g.charge+=dt;if(g.charge<w.aimTime)return shots;g.charge=0;g.channel=w.duration;g.lock=aimIntent;
         // Resolve accuracy once: a hit tracks that victim; a miss keeps its original ray.
-        g.channelRay=trace(u,point,error+(random()*2-1)*w.spread,enemies);
+        g.channelRay=trace(u,point,error,enemies);
       }
       const duration=Math.min(dt,g.channel,g.ammo/w.energy),locked=g.channelRay;
       const victim=locked.victim?.hp>0?locked.victim:null;
@@ -73,12 +73,12 @@ export function createFieldCombat(terrain,{random=Math.random,known=()=>true}={}
     }
     if(g.cooldown>0)return shots;
     if(w.aimTime){g.charge+=dt;if(g.charge<w.aimTime)return shots;g.charge=0;}
-    const spread=w.spread*(1+g.heat*1.5)*(moving?(u.weapon==='machinegun'?5:2):1);
+    const spread=w.mode==='bullet'?w.spread*(1+g.heat*1.5)*(moving?(u.weapon==='machinegun'?5:2):1):0;
     for(let i=0;i<(w.pellets??1);i++){
       const ray=trace(u,point,error+(random()*2-1)*spread,enemies);
       if(ray.victim)ray.victim.hp=Math.max(0,ray.victim.hp-w.damage);shots.push(ray);
     }
-    g.ammo=Math.max(0,g.ammo-(w.energy??1));g.cooldown=w.interval;g.heat=Math.min(1,g.heat+.08);reload(u);
+    g.ammo=Math.max(0,g.ammo-(w.energy??1));g.cooldown=w.interval;if(w.mode==='bullet')g.heat=Math.min(1,g.heat+.08);reload(u);
     return shots;
   }
   return {equip,cancel,tick,trace};
