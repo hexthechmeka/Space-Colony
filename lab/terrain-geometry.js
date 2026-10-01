@@ -114,14 +114,14 @@ function raycast(a,b,channel='shot') {
   const steps=Math.max(1,Math.ceil(distance(a,b)/3));
   for(let i=1;i<steps;i++) {
     const t=i/steps,p={x:mix(a.x,b.x,t),y:mix(a.y,b.y,t),z:mix(a.z,b.z,t)};
-    if(heightAt(p)>p.z+.03) return {...p,name:'절벽 / 경사면'};
+    if(heightAt(p)>p.z+.03) return {...p,id:surface(p).id,name:'절벽 / 경사면'};
     const o=rayObjects.find(o=>{
       const h=channel==='vision'?(o.visionHeight??o.height):(o.shotHeight??o.height);
       const hit=channel==='vision'?o.visionHit:o.shotHit;
       return h>0&&o.baseZ+h>p.z+.03&&
         insideObstacle(hit?{hit}:o,p);
     });
-    if(o) return {...p,name:o.name};
+    if(o) return {...p,id:o.id,name:o.name};
   }
   return null;
 }

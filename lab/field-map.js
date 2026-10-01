@@ -3,7 +3,7 @@ import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
 import {WEAPONS,STATUS,VISION_RANGE,createWeaponRules} from './terrain-weapons.js';
 import {createCamera,clampCamera,screenToWorld,zoomCamera} from './field-camera.js';
 import {drawGeyser} from './geyser-animation.js';
-import {drawFog,MEMORY_COLOR} from './field-fog.js';
+import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,terrainObjectVisible} from './field-fog.js';
 
 const ui=Object.fromEntries(['view','minimap','loading','status','order','crew','weapon','readout','targets',
   'follow','fog','hits','range','zoom','zoomValue','zone','zones','stop','reset'].map(id=>[id,document.getElementById(id)]));
@@ -20,12 +20,14 @@ const memory=explored.getContext('2d'),fogCanvas=document.createElement('canvas'
 const fogCtx=fogCanvas.getContext('2d');
 const ground=document.createElement('canvas');ground.width=field.width;ground.height=field.height;
 const sprites=[...field.terrainSprites,...field.obstacles.flatMap(obstacleLayers)];
+const discoveredObjects=new Set(),visibleObjects=new Set(),darkSprites=new Map();
 ctx.imageSmoothingEnabled=false;mini.imageSmoothingEnabled=false;
 function poly(c,points){c.beginPath();points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();}
 function line(a,b,color,dash=[]){ctx.strokeStyle=color;ctx.lineWidth=1/camera.zoom;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);}
 function select(i){selected=i;ui.weapon.value=crew[i].weapon;[...ui.crew.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
 function stop(){target=null;order=null;crew.forEach(u=>u.path=[]);ui.order.textContent='명령 중지';}
 function reset(){
+  discoveredObjects.clear();visibleObjects.clear();
   crew=CREW_START.map((p,id)=>({...p,id,name:names[id],color:colors[id],eye:1.2,weapon:['pistol','sniper','rifle','pdw'][id],fire:0,path:[]}));
   enemies=ENEMY_START.map((p,id)=>({...p,id,eye:.65,hp:8}));target=null;order=null;shots=[];memory.clearRect(0,0,field.width,field.height);
   camera.x=LZ.x;camera.y=LZ.y;camera.zoom=1;clampCamera(camera);ui.follow.checked=true;ui.zoom.value=100;
@@ -46,6 +48,10 @@ function move(destination){
 }
 function refreshVision(now){
   if(now-visionAt<160)return;visionAt=now;
+  visibleObjects.clear();
+  for(const object of [...field.terrainSprites,...field.obstacles]){
+    if(terrainObjectVisible(object,crew,field,VISION_RANGE)){visibleObjects.add(object.id);discoveredObjects.add(object.id);}
+  }
   visions=crew.map(u=>{const from=rules.eye(u),points=[];
     for(let i=0;i<96;i++){const angle=i*Math.PI*2/96,to={x:u.x+Math.cos(angle)*VISION_RANGE,y:u.y+Math.sin(angle)*VISION_RANGE,z:from.z};
       const hit=field.raycast(from,to,'vision');points.push(point((hit??to).x,(hit??to).y));}
@@ -103,17 +109,20 @@ function drawMini(){
 function draw(now){
   ctx.clearRect(0,0,W,H);ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);
   ctx.drawImage(ground,0,0);
+  if(ui.fog.checked)ctx.drawImage(fogCanvas,0,0);
   for(const z of [LZ,SITE]){ctx.strokeStyle='#87bcc5';ctx.lineWidth=1;ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(z.x,z.y,45,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   for(const u of crew){let p=u;for(const q of u.path){
     const steps=Math.max(1,Math.ceil(distance(p,q)/4));let previous=field.project(p);
     for(let i=1;i<=steps;i++){const next=field.project(point(p.x+(q.x-p.x)*i/steps,p.y+(q.y-p.y)*i/steps));line(previous,next,'rgba(148,217,203,.45)');previous=next;}p=q;
   }}
-  const items=sprites.map(s=>({depth:s.depth,draw:()=>s.kind==='geyser'
-    ?drawGeyser(ctx,textures[s.atlas],s,now):ctx.drawImage(textures[s.atlas],...s.src,...s.draw)}));
+  const items=sprites.filter(s=>!ui.fog.checked||discoveredObjects.has(s.id)).map(s=>({depth:s.depth,draw:()=>{
+    if(ui.fog.checked&&!visibleObjects.has(s.id)){ctx.drawImage(darkSprites.get(s),...s.draw);return;}
+    if(s.kind==='geyser')drawGeyser(ctx,textures[s.atlas],s,now);
+    else ctx.drawImage(textures[s.atlas],...s.src,...s.draw);
+  }}));
   crew.forEach(u=>items.push({depth:field.actorDepth(u),draw:()=>actor(u)}));
   enemies.filter(e=>!ui.fog.checked||known(e)).forEach(e=>items.push({depth:field.actorDepth(e),draw:()=>actor(e,true)}));
   items.sort((a,b)=>a.depth-b.depth).forEach(i=>i.draw());
-  if(ui.fog.checked)ctx.drawImage(fogCanvas,0,0);
   const u=crew[selected],w=WEAPONS[u.weapon],foot=field.project(u);
   if(ui.range.checked){ctx.strokeStyle='rgba(105,185,226,.55)';ctx.lineWidth=1/camera.zoom;ctx.setLineDash([5,7]);ctx.beginPath();ctx.arc(foot.x,foot.y,w.range,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(ui.hits.checked)drawHits();
@@ -175,6 +184,12 @@ async function load(){
     const image=new Image();image.src=url;await image.decode();textures[key]=image;
   }
   const bg=ground.getContext('2d');bg.imageSmoothingEnabled=false;
+  for(const sprite of sprites){
+    const image=document.createElement('canvas');image.width=sprite.src[2];image.height=sprite.src[3];
+    const paint=image.getContext('2d');paint.drawImage(textures[sprite.atlas],...sprite.src,0,0,image.width,image.height);
+    paint.globalCompositeOperation='source-atop';paint.fillStyle=`rgba(0,0,0,${MEMORY_OPACITY})`;paint.fillRect(0,0,image.width,image.height);
+    darkSprites.set(sprite,image);
+  }
   for(let y=0;y<field.height;y+=192)for(let x=0;x<field.width;x+=192)bg.drawImage(textures.ground,x,y,192,192);
   reset();ready=true;ui.loading.remove();
 }
