@@ -4,9 +4,9 @@ export const VISION_RANGE=330;
 // Temporary demo values; distances use the terrain's world-coordinate units.
 export const WEAPONS={
   pistol:{name:'권총',range:170,interval:.42,damage:1,mode:'bullet',magazine:12,reserve:48,reload:1.4,spread:.025,move:1},
-  pdw:{name:'PDW',range:280,interval:.07,damage:.55,mode:'bullet',magazine:30,reserve:90,reload:1.7,spread:.06,move:1},
-  rifle:{name:'소총',range:350,interval:.12,damage:1,mode:'bullet',magazine:30,reserve:90,reload:1.9,spread:.035,move:1},
-  sniper:{name:'저격총',range:480,interval:1.6,damage:4,mode:'bullet',magazine:5,reserve:15,reload:2.4,spread:.006,move:.9,vision:150,aimTime:.3},
+  pdw:{name:'PDW',range:350,interval:.07,damage:.55,mode:'bullet',magazine:30,reserve:90,reload:1.7,spread:.06,move:1},
+  rifle:{name:'소총',range:550,interval:.12,damage:1,mode:'bullet',magazine:30,reserve:90,reload:1.9,spread:.035,move:1},
+  sniper:{name:'저격총',range:700,interval:1.6,damage:4,mode:'bullet',magazine:5,reserve:15,reload:2.4,spread:.006,move:.9,vision:150,aimTime:.3},
   shotgun:{name:'샷건',range:155,interval:.9,damage:.6,mode:'bullet',magazine:6,reserve:24,reload:2.3,spread:.14,pellets:7,move:.96},
   machinegun:{name:'기관총',range:320,interval:.065,damage:.7,mode:'bullet',magazine:60,reserve:120,reload:3.4,spread:.05,move:.78},
   beam:{name:'빔 소총',range:350,interval:.1,damage:1.1,mode:'beam',battery:100,batteries:3,reload:2.8,spread:.001,energy:6,move:1},
