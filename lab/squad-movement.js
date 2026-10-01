@@ -46,6 +46,13 @@ export function createSquadMovement(terrain){
       const substeps=Math.max(1,Math.ceil(u.moveSpeed*dt));
       for(let i=0;i<substeps&&!predicted.stuck;i++)terrain.advance(predicted,dt/substeps,u.moveSpeed);
       if(predicted.stuck){
+        const next=u.path[0],detours=[];
+        for(const radius of [4,8,12])for(let i=0;i<16;i++){
+          const angle=i*Math.PI/8,p={x:u.x+Math.cos(angle)*radius,y:u.y+Math.sin(angle)*radius};
+          if(terrain.canTravel(u,p)&&terrain.canTravel(p,next)&&crew.every(v=>v===u||segmentDistance(v,u,p)>=13))detours.push(p);
+        }
+        detours.sort((a,b)=>(distance(u,a)+distance(a,next))-(distance(u,b)+distance(b,next)));
+        if(detours.length){u.path.unshift(detours[0]);u.moveSpeed=0;continue;}
         const retry=terrain.findPath(u,goal);u.path=retry??[];u.stuck=!retry?.length;u.moveSpeed=0;continue;
       }
       const clear=p=>crew.every(v=>v===u||distance(p,v)>=13||distance(p,v)>distance(u,v));

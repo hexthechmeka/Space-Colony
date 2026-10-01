@@ -10,7 +10,7 @@ export function createFieldCombat(terrain,{random=Math.random,known=()=>true}={}
     const w=WEAPONS[u.weapon];
     u.gun={ammo:w.battery??w.magazine,reserve:w.batteries??w.reserve,reload:0,cooldown:0,charge:0,channel:0,bias:0,biasTarget:0,biasTime:0,heat:0,aim:0};
   }
-  function cancel(u){if(u.gun){u.gun.charge=0;u.gun.channel=0;u.gun.lock=null;u.gun.aim=0;}}
+  function cancel(u){if(u.gun){u.gun.charge=0;u.gun.channel=0;u.gun.lock=null;u.gun.channelRay=null;u.gun.aim=0;}}
   function reload(u){const g=u.gun,w=WEAPONS[u.weapon];if(g.ammo<=0&&g.reserve>0&&!g.reload)g.reload=w.reload;}
   function intentPoint(u,intent){
     if(intent.target)return rules.aim(intent.target);
@@ -60,11 +60,16 @@ export function createFieldCombat(terrain,{random=Math.random,known=()=>true}={}
     const moving=(u.moveSpeed??0)>4;
     const error=g.bias*(1.5-g.aim*.8)*(moving?2.5:1);
     if(w.mode==='channel'){
-      if(!g.channel){if(g.cooldown>0)return shots;g.charge+=dt;if(g.charge<w.aimTime)return shots;g.charge=0;g.channel=w.duration;g.lock=aimIntent;}
-      const duration=Math.min(dt,g.channel,g.ammo/w.energy),ray=trace(u,point,error+(random()*2-1)*w.spread,enemies);
+      if(!g.channel){if(g.cooldown>0)return shots;g.charge+=dt;if(g.charge<w.aimTime)return shots;g.charge=0;g.channel=w.duration;g.lock=aimIntent;
+        // Resolve accuracy once: a hit tracks that victim; a miss keeps its original ray.
+        g.channelRay=trace(u,point,error+(random()*2-1)*w.spread,enemies);
+      }
+      const duration=Math.min(dt,g.channel,g.ammo/w.energy),locked=g.channelRay;
+      const victim=locked.victim?.hp>0?locked.victim:null;
+      const ray={...locked,a:{...locked.a},b:victim?rules.aim(victim):{...locked.b},victim};
       if(ray.victim)ray.victim.hp=Math.max(0,ray.victim.hp-w.damage*duration);
       shots.push(ray);g.channel=Math.max(0,g.channel-duration);g.ammo=Math.max(0,g.ammo-w.energy*duration);
-      if(!g.channel||g.ammo<=0){g.channel=0;g.lock=null;g.cooldown=w.interval;}reload(u);return shots;
+      if(!g.channel||g.ammo<=0){g.channel=0;g.lock=null;g.channelRay=null;g.cooldown=w.interval;}reload(u);return shots;
     }
     if(g.cooldown>0)return shots;
     if(w.aimTime){g.charge+=dt;if(g.charge<w.aimTime)return shots;g.charge=0;}

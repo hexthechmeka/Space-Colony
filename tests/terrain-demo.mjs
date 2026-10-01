@@ -68,5 +68,5 @@ assert.ok(actorDepth(frontPillar)>pillarDepth,'actors in front of pillar must re
 assert.ok(actorDepth(point(735,205))<rampDepth,'ground behind the ramp must remain behind terrain');
 assert.ok(raycast({x:376,y:450,z:1.2},{x:376,y:560,z:1.2}),'pillar must occlude');
 assert.equal(raycast({x:100,y:400,z:1.2},{x:250,y:400,z:1.2}),null,'low boulder should not occlude eye height');
-const u={x:80,y:80,path:[point(300,80)]};advance(u,1);assert.equal(u.x,80+MOVE_SPEED);assert.equal(MOVE_SPEED,86);
+const u={x:80,y:80,path:[point(300,80)]};advance(u,1);assert.ok(Math.abs(u.x-(80+MOVE_SPEED))<1e-9);assert.equal(MOVE_SPEED,120.4);
 console.log('PASS: slanted cover layering, ramp entry, pillar occlusion, 4-person ascent/descent, projection, LOS, speed');

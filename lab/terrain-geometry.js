@@ -1,5 +1,5 @@
 export const WIDTH = 960, HEIGHT = 600, CELL = 8, RADIUS = 6;
-export const MOVE_SPEED = 86, HEIGHT_PIXELS = 32;
+export const MOVE_SPEED = 120.4, HEIGHT_PIXELS = 32;
 export const point = (x, y) => ({ x, y });
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const mix = (a, b, t) => a + (b - a) * t;

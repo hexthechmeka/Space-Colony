@@ -16,7 +16,7 @@ assert.equal(shot.length,1);assert.equal(shot[0].victim,e);assert.equal(e.hp,99)
 assert.equal(u.gun.ammo,29);
 assert.equal(combat.tick(u,.016,direct,[e]).length,0,'held fire respects cadence');
 let count=1;for(let i=0;i<90;i++)count+=combat.tick(u,1/60,direct,[e]).length;
-assert.ok(count>=6&&count<=8,'held fire repeats');
+assert.ok(count>=12&&count<=14,'held fire repeats at the faster rifle cadence');
 const away=enemy(150,180),awayHp=away.hp;
 const fresh=user();combat.equip(fresh);combat.tick(fresh,.016,direct,[away]);assert.equal(away.hp,awayHp,'no target snapping');
 const front=enemy(110),rear=enemy(160);const first=combat.trace(user(),{x:200,y:100,z:1},0,[rear,front]);
@@ -51,8 +51,16 @@ for(let i=0;i<29;i++)assert.equal(combat.tick(laser,1/60,{target:moving},[moving
 let rays=[];for(let i=0;i<3;i++)rays.push(...combat.tick(laser,1/60,{target:moving},[moving]));assert.ok(rays.length>0);
 const beamAmmo=laser.gun.ammo;moving.y=112;const tracked=combat.tick(laser,1/60,null,[moving]);
 assert.equal(tracked[0].victim,moving,'active beam tracks its locked target after mouse release');
+assert.equal(tracked[0].b.y,moving.y,'tracking beam follows the hit victim without random wobble');
 assert.ok(laser.gun.ammo<beamAmmo);
 for(let i=0;i<100;i++)combat.tick(laser,1/60,null,[moving]);
 assert.equal(laser.gun.channel,0);assert.ok(Math.abs(laser.gun.ammo-50)<.01,'1.25 second channel consumes fifty charge');
 combat.cancel(laser);assert.equal(laser.gun.charge,0);
+const missLaser=user('beamSniper'),newTarget=enemy(220,180);combat.equip(missLaser);
+const missed=combat.tick(missLaser,.5,direct,[newTarget])[0];assert.equal(missed.victim,null);
+newTarget.y=100;
+const stillMissed=combat.tick(missLaser,.1,{target:newTarget},[newTarget])[0];
+assert.equal(stillMissed.victim,null,'a missed channel cannot acquire a target later');
+assert.deepEqual(stillMissed.b,missed.b,'missed beam direction stays fixed despite new input');
+assert.equal(newTarget.hp,100);
 console.log('PASS: directional hitscan, misses, cadence, first hits, terrain blocking, seven-pellet shotgun, reload/battery, charged tracking beam');
