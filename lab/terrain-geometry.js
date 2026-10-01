@@ -31,6 +31,21 @@ export function segmentDistance(p,a,b) {
   return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
 }
 const edges = poly => poly.map((p,i)=>[p,poly[(i+1)%poly.length]]);
+export function obstacleDepthAt(o,x) {
+  if(!o.poly)return o.depth;
+  const xs=o.poly.map(p=>p.x);
+  x=Math.max(Math.min(...xs)+.001,Math.min(Math.max(...xs)-.001,x));
+  const ys=edges(o.poly).filter(([a,b])=>a.x!==b.x&&x>=Math.min(a.x,b.x)&&x<=Math.max(a.x,b.x))
+    .map(([a,b])=>mix(a.y,b.y,(x-a.x)/(b.x-a.x)));
+  return (Math.min(...ys)+Math.max(...ys))/2;
+}
+export function obstacleLayers(o) {
+  if(!o.poly)return [o];
+  const [sx,sy,sw,sh]=o.src,[x,y,w,h]=o.draw;
+  // Slanted cover needs a local foot baseline, not one depth for its whole image.
+  return Array.from({length:w},(_,i)=>({...o,src:[sx+i*sw/w,sy,sw/w,sh],
+    draw:[x+i,y,1,h],depth:obstacleDepthAt(o,x+i+.5)}));
+}
 // Only the bottom and top ramp edges are portals. Side edges remain impassable.
 export const barriers = [
   [ramp[0],ramp[3]], [ramp[1],ramp[2]],

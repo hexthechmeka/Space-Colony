@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {point,distance,ramp,plateau,heightAt,surface,project,pickGround,blocked,
-  canTravel,findPath,advance,raycast,MOVE_SPEED,actorDepth,terrainSprites,obstacles} from '../lab/terrain-geometry.js';
+  canTravel,findPath,advance,raycast,MOVE_SPEED,actorDepth,terrainSprites,obstacles,
+  obstacleDepthAt,obstacleLayers} from '../lab/terrain-geometry.js';
 
 const starts=[point(100,430),point(132,454),point(166,456),point(95,393)];
 const high=point(818,230),behindPillar=point(376,451),frontPillar=point(376,550);
@@ -40,6 +41,22 @@ for(const lane of [.15,.5,.85])for(const t of [-.4,-.1,0,.0001,.004,.02,.3,.9]){
   assert.ok(actorDepth(p)>rampDepth,'ramp entry must not cover actors before/after gaining height');
 }
 const pillarDepth=obstacles.find(o=>o.id==='pillar').depth;
+const wall=obstacles.find(o=>o.id==='wall'),layers=obstacleLayers(wall);
+assert.equal(layers.length,wall.draw[2]);
+assert.equal(layers.reduce((n,s)=>n+s.draw[2],0),wall.draw[2],'slices must cover the full sprite');
+for(const x of [550,570,620,680,735]){
+  const baseline=obstacleDepthAt(wall,x);
+  const front=point(x,baseline+18),back=point(x,baseline-18);
+  assert.ok(actorDepth(front)>baseline,'feet in front of slanted cover must be visible');
+  assert.ok(actorDepth(back)<baseline,'feet behind slanted cover must remain occluded');
+  const overlapping=layers.filter(s=>Math.abs(s.draw[0]+.5-x)<=10);
+  assert.ok(overlapping.every(s=>s.depth<actorDepth(front)),'all overlapping wall columns must be behind a front actor');
+  assert.ok(overlapping.every(s=>s.depth>actorDepth(back)),'all overlapping wall columns must cover a rear actor');
+}
+assert.ok(actorDepth(point(550,423))>obstacleDepthAt(wall,550),'left-end regression');
+assert.ok(obstacleDepthAt(wall,570)<425&&obstacleDepthAt(wall,710)>425,
+  'the same foot Y must be in front at the left and behind at the right');
+assert.equal(obstacleLayers(obstacles.find(o=>o.id==='pillar')).length,1);
 for(const p of [point(650,265),point(660,273),point(720,274)]){
   assert.equal(surface(p).id,'ground');
   assert.ok(actorDepth(p)>rampDepth,'ground actors beside the entry must render in front based on feet');
@@ -52,4 +69,4 @@ assert.ok(actorDepth(point(735,205))<rampDepth,'ground behind the ramp must rema
 assert.ok(raycast({x:376,y:450,z:1.2},{x:376,y:560,z:1.2}),'pillar must occlude');
 assert.equal(raycast({x:100,y:400,z:1.2},{x:250,y:400,z:1.2}),null,'low boulder should not occlude eye height');
 const u={x:80,y:80,path:[point(300,80)]};advance(u,1);assert.equal(u.x,80+MOVE_SPEED);assert.equal(MOVE_SPEED,86);
-console.log('PASS: ramp entry layering, pillar occlusion, 4-person ascent/descent, projection, LOS, speed');
+console.log('PASS: slanted cover layering, ramp entry, pillar occlusion, 4-person ascent/descent, projection, LOS, speed');
