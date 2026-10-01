@@ -39,7 +39,7 @@ export function createSquadMovement(terrain){
       }
       const lead=longest-length;
       const cohesion=lead>170&&length>60?0:lead>85&&length>60?.55:1;
-      const speed=Math.min(MOVE_SPEED*(.98+(u.id%4)*.014),Math.max(14,Math.sqrt(length*280)))*cohesion;
+      const speed=Math.min(MOVE_SPEED*(.98+(u.id%4)*.014)*(u.weaponMove??1)*(u.firingMove??1),Math.max(14,Math.sqrt(length*280)))*cohesion;
       const acceleration=260+u.id*28;
       u.moveSpeed=(u.moveSpeed??0)+Math.max(-acceleration*dt,Math.min(acceleration*dt,speed-(u.moveSpeed??0)));
       const predicted={...u,path:[...u.path]};
