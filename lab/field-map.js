@@ -1,7 +1,8 @@
 import {point,distance,obstacleLayers} from './terrain-geometry.js';
 import {createSquadMovement} from './squad-movement.js';
 import {createFieldCombat,pickFocusTarget} from './field-combat.js';
-import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
+import * as originalMap from './field-map-data.js';
+import * as elevationMap from './elevation-map-data.js';
 import {WEAPONS,STATUS,createWeaponRules} from './terrain-weapons.js';
 import {createCamera,clampCamera,centerCamera,edgeCameraDirection,screenToWorld,zoomCamera} from './field-camera.js';
 import {drawGeyser} from './geyser-animation.js';
@@ -10,6 +11,23 @@ import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,FOG_EDGE_BLUR,VISION_REFRESH_MS,terr
 const ui=Object.fromEntries(['view','minimap','loading','status','order','crew','weapon','readout','targets',
   'follow','fog','hits','range','zoom','zoomValue','zone','zones','stop','reset'].map(id=>[id,document.getElementById(id)]));
 const ctx=ui.view.getContext('2d'),mini=ui.minimap.getContext('2d'),W=960,H=600;
+const elevationMode=new URLSearchParams(location.search).get('terrain')==='elevation';
+const {field,LZ,SITE,ZONES,CREW_START,ENEMY_START}=elevationMode?elevationMap:originalMap;
+const mapLink=document.createElement('a');mapLink.href=elevationMode?'./field-map.html':'./field-map.html?terrain=elevation';mapLink.textContent=elevationMode?'기존 자연 지형':'고저차 지형';document.querySelector('header').append(mapLink);
+let deploymentZone=ZONES[0];
+const sightToggle=document.createElement('input'),sightLabel=document.createElement('label');
+sightToggle.type='checkbox';sightToggle.checked=elevationMode;sightLabel.append(sightToggle,document.createTextNode('개인 시야'));ui.range.parentElement.after(sightLabel);
+if(elevationMode){const deploy=document.createElement('button');deploy.textContent='관측 지점에 분대 배치';deploy.style.cssText='width:100%;margin-top:6px';ui.zones.after(deploy);
+  deploy.onclick=()=>{if(!ready)return;stop();
+    const used=[];
+    for(const u of crew){
+      const offsets=[[-18,-18],[18,-18],[-18,18],[18,18],[-36,0],[36,0],[0,-36],[0,36]];
+      const p=offsets.map(([x,y])=>point(deploymentZone.x+x,deploymentZone.y+y)).find(p=>!field.blocked(p)&&used.every(q=>distance(p,q)>=24));
+      if(p){u.x=p.x;u.y=p.y;u.stuck=false;used.push(p);}
+    }
+    visionAt=-Infinity;visionStamp=null;knownCache.clear();hudAt=-Infinity;ui.order.textContent='시험 배치 완료';
+  };
+}
 const contactLabels={clear:'보임 · 사격 경로 확보',visible:'보임 · 사격 경로 차폐',hidden:'시야 완전 차단'};
 const contactColors={clear:'#76ddba',visible:'#e3b562',hidden:'#e18884'};
 const legend=document.createElement('div');legend.style.cssText='font-size:11px;margin-top:9px';
@@ -31,6 +49,7 @@ memory.scale(FOG_SCALE,FOG_SCALE);fogCtx.scale(FOG_SCALE,FOG_SCALE);
 const ground=document.createElement('canvas');ground.width=field.width;ground.height=field.height;
 const sprites=[...field.terrainSprites,...field.obstacles.flatMap(obstacleLayers)];
 const discoveredObjects=new Set(),visibleObjects=new Set(),darkSprites=new Map();
+const discoveredEdges=new Set(),visibleEdges=new Set();
 const knownCache=new Map();
 ctx.imageSmoothingEnabled=false;mini.imageSmoothingEnabled=false;
 ui.view.style.cursor='crosshair';
@@ -39,8 +58,9 @@ function line(a,b,color,dash=[],width=1){ctx.strokeStyle=color;ctx.lineWidth=wid
 function select(i){manual=null;selected=i;crew.forEach(u=>{u.selected=u.id===i;});visionAt=-Infinity;knownCache.clear();hudAt=-Infinity;ui.weapon.value=crew[i].weapon;skillSlider.value=crew[i].skill*100;[...ui.crew.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
 function stop(){target=null;manual=null;order=null;squadMovement.stop(crew);crew.forEach(combat.cancel);ui.order.textContent='명령 중지';}
 function reset(){
-  edgePointer=null;spaceHeld=false;knownCache.clear();hudAt=-Infinity;
+  edgePointer=null;spaceHeld=false;deploymentZone=ZONES[0];knownCache.clear();hudAt=-Infinity;
   discoveredObjects.clear();visibleObjects.clear();
+  discoveredEdges.clear();visibleEdges.clear();
   crew=CREW_START.map((p,id)=>({...p,id,name:names[id],color:colors[id],eye:1.2,skill:[.65,.8,.55,.7][id],weapon:['pistol','sniper','rifle','pdw'][id],path:[]}));crew.forEach(combat.equip);
   enemies=ENEMY_START.map((p,id)=>({...p,id,eye:.65,hp:8}));target=null;manual=null;order=null;shots=[];memory.clearRect(0,0,field.width,field.height);
   camera.edgeCenter=false;camera.x=LZ.x;camera.y=LZ.y;camera.zoom=1;clampCamera(camera);ui.follow.checked=true;ui.zoom.value=100;
@@ -56,12 +76,17 @@ function refreshVision(now){
   const stamp=crew.map(u=>`${u.x.toFixed(1)},${u.y.toFixed(1)},${u.eye},${u.weapon},${u.selected}`).join(';');
   if(stamp===visionStamp)return;visionStamp=stamp;
   visibleObjects.clear();
+  visibleEdges.clear();
+  if(elevationMode)elevationMap.boundaries.forEach((edge,i)=>{
+    const p={x:(edge.a.x+edge.b.x)/2,y:(edge.a.y+edge.b.y)/2,z:edge.high+.05};
+    if(crew.some(u=>distance(u,p)<=rules.visionRange(u)&&!field.raycast(rules.eye(u),p,'vision'))){visibleEdges.add(i);discoveredEdges.add(i);}
+  });
   for(const object of [...field.terrainSprites,...field.obstacles]){
     if(crew.some(u=>terrainObjectVisible(object,[u],field,rules.visionRange(u)))){visibleObjects.add(object.id);discoveredObjects.add(object.id);}
   }
   visions=crew.map(u=>{const from=rules.eye(u),points=[];
     for(let i=0;i<96;i++){const angle=i*Math.PI*2/96,range=rules.visionRange(u),to={x:u.x+Math.cos(angle)*range,y:u.y+Math.sin(angle)*range,z:from.z};
-      const hit=field.raycast(from,to,'vision');points.push(point((hit??to).x,(hit??to).y));}
+      const hit=field.raycast(from,to,'vision'),p=point((hit??to).x,(hit??to).y);points.push(elevationMode?field.project(p):p);}
     return points;});
   memory.save();memory.filter=`blur(${FOG_EDGE_BLUR}px)`;
   memory.fillStyle=MEMORY_COLOR;memory.beginPath();for(const points of visions){points.forEach((p,i)=>i?memory.lineTo(p.x,p.y):memory.moveTo(p.x,p.y));memory.closePath();}memory.fill();memory.restore();
@@ -115,9 +140,9 @@ function drawMini(){
   for(const o of field.obstacles){mini.beginPath();if(o.hit)mini.ellipse(...o.hit,0,0,Math.PI*2);else poly(mini,o.poly);mini.fill();}
   mini.fillStyle='#7c8973';poly(mini,field.plateau);mini.fill();
   if(ui.fog.checked)mini.drawImage(fogCanvas,0,0,field.width,field.height);
-  for(const e of enemies){if(e.hp<=0||!known(e))continue;mini.fillStyle='#f1887c';mini.fillRect(e.x-12,e.y-12,24,24);}
+  for(const e of enemies){if(e.hp<=0||!known(e))continue;const p=elevationMode?field.project(e):e;mini.fillStyle='#f1887c';mini.fillRect(p.x-12,p.y-12,24,24);}
   for(const z of [LZ,SITE]){mini.strokeStyle='#72cde5';mini.lineWidth=2/sx;mini.strokeRect(z.x-20,z.y-20,40,40);}
-  for(const u of crew){mini.fillStyle=u.color;mini.fillRect(u.x-9,u.y-9,18,18);}
+  for(const u of crew){const p=elevationMode?field.project(u):u;mini.fillStyle=u.color;mini.fillRect(p.x-9,p.y-9,18,18);}
   mini.strokeStyle='#b9dfda';mini.lineWidth=1/sx;mini.strokeRect(camera.x-W/camera.zoom/2,camera.y-H/camera.zoom/2,W/camera.zoom,H/camera.zoom);mini.restore();
 }
 function draw(now){
@@ -135,10 +160,15 @@ function draw(now){
     if(s.kind==='geyser')drawGeyser(ctx,textures[s.atlas],s,now);
     else ctx.drawImage(textures[s.atlas],...s.src,...s.draw);
   }}));
+  if(elevationMode)elevationMap.boundaries.forEach((edge,i)=>{
+    if(ui.fog.checked&&!discoveredEdges.has(i))return;
+    items.push({depth:edge.depth,draw:()=>elevationMap.drawElevationEdge(ctx,textures.elevation,edge,ui.fog.checked&&!visibleEdges.has(i))});
+  });
   crew.forEach(u=>items.push({depth:field.actorDepth(u),draw:()=>actor(u)}));
   enemies.filter(e=>!ui.fog.checked||known(e)).forEach(e=>items.push({depth:field.actorDepth(e),draw:()=>actor(e,true)}));
   items.sort((a,b)=>a.depth-b.depth).forEach(i=>i.draw());
   const u=crew[selected],w=WEAPONS[u.weapon],foot=field.project(u);
+  if(sightToggle.checked){ctx.strokeStyle='rgba(139,224,171,.7)';ctx.lineWidth=1/camera.zoom;ctx.setLineDash([2,5]);ctx.beginPath();ctx.arc(foot.x,foot.y,rules.visionRange(u),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(ui.range.checked){ctx.strokeStyle='rgba(105,185,226,.55)';ctx.lineWidth=1/camera.zoom;ctx.setLineDash([5,7]);ctx.beginPath();ctx.arc(foot.x,foot.y,w.range,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(ui.hits.checked)drawHits();
   for(const e of enemies){if(e.hp<=0||!known(e)||distance(u,e)>rules.visionRange(u))continue;
@@ -170,7 +200,7 @@ for(let i=0;i<4;i++){const b=document.createElement('button');b.onclick=()=>sele
   b.append(meter,label);ammoMeters.push(meter);ammoLabels.push(label);label.style.fontSize='11px';ui.crew.appendChild(b);}
 ui.weapon.onchange=()=>{if(!ready)return;manual=null;target=null;crew[selected].weapon=ui.weapon.value;combat.equip(crew[selected]);visionAt=-Infinity;};
 skillSlider.oninput=()=>{if(ready)crew[selected].skill=+skillSlider.value/100;};
-for(const z of ZONES){const b=document.createElement('button');b.textContent=z.name;b.onclick=()=>{ui.follow.checked=false;camera.x=z.x;camera.y=z.y;clampCamera(camera);};ui.zones.appendChild(b);}
+for(const z of ZONES){const b=document.createElement('button');b.textContent=z.name;b.onclick=()=>{deploymentZone=z;ui.follow.checked=false;camera.x=z.x;camera.y=elevationMode?field.project(z).y:z.y;clampCamera(camera);};ui.zones.appendChild(b);}
 ui.zoom.oninput=()=>zoomCamera(camera,+ui.zoom.value/100);ui.reset.onclick=()=>{if(ready)reset();};ui.stop.onclick=stop;
 const keys=new Set();let drag=null,edgePointer=null;
 addEventListener('pointermove',e=>{
@@ -222,6 +252,7 @@ async function load(){
   for(const [key,url] of Object.entries({terrain:'../assets/terrain/drafts/terrain-spritesheet-v3.png',nature:'../assets/terrain/drafts/nature-atlas-v1.png',cover:'../assets/terrain/drafts/natural-cover-atlas-v1.png',ground:'../assets/terrain/drafts/regolith-tile-v1.png'})){
     const image=new Image();image.src=url;await image.decode();textures[key]=image;
   }
+  if(elevationMode){const image=new Image();image.src='../assets/terrain/drafts/elevation-textures-v1.png';await image.decode();textures.elevation=image;}
   const bg=ground.getContext('2d');bg.imageSmoothingEnabled=false;
   for(const sprite of sprites){
     const image=document.createElement('canvas');image.width=sprite.src[2];image.height=sprite.src[3];
@@ -230,6 +261,7 @@ async function load(){
     darkSprites.set(sprite,image);
   }
   for(let y=0;y<field.height;y+=192)for(let x=0;x<field.width;x+=192)bg.drawImage(textures.ground,x,y,192,192);
+  if(elevationMode)elevationMap.paintElevationGround(bg,textures.elevation);
   reset();ready=true;ui.loading.remove();
 }
 load().catch(()=>{ui.loading.textContent='지형 자료를 불러오지 못했습니다.';});

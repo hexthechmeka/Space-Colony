@@ -48,9 +48,9 @@ export function obstacleLayers(o) {
 }
 // Only the bottom and top ramp edges are portals. Side edges remain impassable.
 export function createTerrain({width=WIDTH,height=HEIGHT,cell=CELL,plateau:top=plateau,ramp:slope=ramp,
-  terrainSprites:sprites=terrainSprites,obstacles:objects=obstacles}={}) {
+  terrainSprites:sprites=terrainSprites,obstacles:objects=obstacles,elevation=null}={}) {
 const WIDTH=width,HEIGHT=height,CELL=cell,plateau=top,ramp=slope,terrainSprites=sprites,obstacles=objects;
-const barriers = [
+const barriers = elevation?.barriers??[
   [ramp[0],ramp[3]], [ramp[1],ramp[2]],
   ...edges(plateau).slice(0,3), [plateau[3],ramp[2]], [ramp[3],plateau[0]],
 ];
@@ -63,12 +63,14 @@ function rampHeight(p) {
   return Math.max(0,Math.min(2,rampCoordinates(p).progress*2));
 }
 function surface(p) {
+  if(elevation)return elevation.surface(p);
   if(inPolygon(p,plateau)) return {id:'plateau',z:2};
   if(inPolygon(p,ramp)) return {id:'ramp',z:rampHeight(p)};
   return {id:'ground',z:0};
 }
 const heightAt = p => surface(p).z;
 function actorDepth(p) {
+  if(elevation)return p.y;
   const [left,,width]=terrainSprites.find(o=>o.id==='ramp').draw;
   const entryY=ramp[0].y+(p.x-ramp[0].x)*(ramp[1].y-ramp[0].y)/(ramp[1].x-ramp[0].x);
   // Actor coordinates are feet: the entry's front half-plane includes its flanks.
@@ -82,6 +84,7 @@ const project = p => point(p.x,p.y-(p.z??heightAt(p))*HEIGHT_PIXELS);
 const rampScreen = ramp.map((p,i)=>project({...p,z:i<2?0:2}));
 const plateauScreen = plateau.map(p=>project({...p,z:2}));
 function pickGround(p) {
+  if(elevation)return elevation.pickGround(p);
   if(inPolygon(p,plateauScreen)) return point(p.x,p.y+2*HEIGHT_PIXELS);
   if(inPolygon(p,rampScreen)) {
     const bottom=sub(rampScreen[1],rampScreen[0]);
@@ -104,7 +107,7 @@ function canTravel(a,b,r=RADIUS) {
   let last=heightAt(a);
   for(let i=0;i<=steps;i++) {
     const t=i/steps,p=point(mix(a.x,b.x,t),mix(a.y,b.y,t)),z=heightAt(p);
-    if(blocked(p,r)||Math.abs(z-last)>.22) return false;
+    if(blocked(p,r)||Math.abs(z-last)>(elevation?1.001:.22)) return false;
     last=z;
   }
   return true;
@@ -186,7 +189,7 @@ function advance(unit,dt,speed=MOVE_SPEED) {
     unit.x=p.x;unit.y=p.y;remaining-=step;if(step===length)unit.path.shift();
   }
 }
-return {width,height,cell,plateau,ramp,terrainSprites,obstacles,barriers,surface,heightAt,actorDepth,
+return {width,height,cell,plateau,ramp,terrainSprites,obstacles,barriers,surface,heightAt,actorDepth,arrivalRadius:elevation?.arrivalRadius??56,
   project,rampScreen,plateauScreen,pickGround,insideObstacle,blocked,canTravel,raycast,findPath,advance};
 }
 export const {barriers,surface,heightAt,actorDepth,project,rampScreen,plateauScreen,pickGround,

@@ -57,7 +57,7 @@ export function createSquadMovement(terrain){
       }
       const clear=p=>crew.every(v=>v===u||distance(p,v)>=13||distance(p,v)>distance(u,v));
       if(clear(predicted)){u.x=predicted.x;u.y=predicted.y;u.path=predicted.path;continue;}
-      if(distance(u,u.squadDestination)<56&&terrain.surface(u).id===terrain.surface(u.squadDestination).id){
+      if(distance(u,u.squadDestination)<(terrain.arrivalRadius??56)&&terrain.surface(u).id===terrain.surface(u.squadDestination).id){
         u.path=[];u.moveSpeed=0;continue;
       }
       // Bypass a stopped member with a validated waypoint, not per-frame jitter.
