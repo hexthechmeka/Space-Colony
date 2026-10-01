@@ -3,7 +3,7 @@ import {field,LZ,SITE,ZONES,CREW_START,ENEMY_START} from './field-map-data.js';
 import {WEAPONS,STATUS,VISION_RANGE,createWeaponRules} from './terrain-weapons.js';
 import {createCamera,clampCamera,screenToWorld,zoomCamera} from './field-camera.js';
 import {drawGeyser} from './geyser-animation.js';
-import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,terrainObjectVisible} from './field-fog.js';
+import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,FOG_EDGE_BLUR,VISION_REFRESH_MS,terrainObjectVisible} from './field-fog.js';
 
 const ui=Object.fromEntries(['view','minimap','loading','status','order','crew','weapon','readout','targets',
   'follow','fog','hits','range','zoom','zoomValue','zone','zones','stop','reset'].map(id=>[id,document.getElementById(id)]));
@@ -47,7 +47,7 @@ function move(destination){
   ui.order.textContent=failed?`${failed}명 경로 없음`:'분대 이동';
 }
 function refreshVision(now){
-  if(now-visionAt<160)return;visionAt=now;
+  if(now-visionAt<VISION_REFRESH_MS)return;visionAt=now;
   visibleObjects.clear();
   for(const object of [...field.terrainSprites,...field.obstacles]){
     if(terrainObjectVisible(object,crew,field,VISION_RANGE)){visibleObjects.add(object.id);discoveredObjects.add(object.id);}
@@ -56,7 +56,8 @@ function refreshVision(now){
     for(let i=0;i<96;i++){const angle=i*Math.PI*2/96,to={x:u.x+Math.cos(angle)*VISION_RANGE,y:u.y+Math.sin(angle)*VISION_RANGE,z:from.z};
       const hit=field.raycast(from,to,'vision');points.push(point((hit??to).x,(hit??to).y));}
     return points;});
-  memory.fillStyle=MEMORY_COLOR;for(const points of visions){poly(memory,points);memory.fill();}
+  memory.save();memory.filter=`blur(${FOG_EDGE_BLUR}px)`;
+  memory.fillStyle=MEMORY_COLOR;for(const points of visions){poly(memory,points);memory.fill();}memory.restore();
   drawFog(fogCtx,explored,visions,field.width,field.height);
 }
 function update(dt,now){

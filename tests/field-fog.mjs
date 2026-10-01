@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,terrainObjectVisible} from '../lab/field-fog.js';
+import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,FOG_EDGE_BLUR,VISION_REFRESH_MS,terrainObjectVisible} from '../lab/field-fog.js';
 import {createTerrain} from '../lab/terrain-geometry.js';
 
 // Three representative pixels: unexplored, remembered, currently visible.
@@ -23,6 +23,9 @@ assert.deepEqual(pixels,[1,MEMORY_OPACITY,MEMORY_OPACITY],'visited ground keeps 
 drawFog(ctx,[0,0,0],[],3,1);
 assert.deepEqual(pixels,[1,1,1],'cleared exploration returns to opaque black');
 assert.equal(MEMORY_COLOR,'#000000');
+assert.equal(ctx.filter,`blur(${FOG_EDGE_BLUR}px)`);
+assert.ok(FOG_EDGE_BLUR>0&&FOG_EDGE_BLUR<=8,'only a narrow fog boundary is softened');
+assert.ok(VISION_REFRESH_MS<=50,'moving vision refreshes at least twenty times per second');
 const tree={id:'tree',name:'tree',hit:[220,100,20,12],height:4};
 const blocker={id:'front-tree',name:'tree',hit:[160,100,35,30],height:5};
 const crew=[{x:100,y:100,eye:1.2}];
