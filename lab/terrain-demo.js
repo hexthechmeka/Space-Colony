@@ -102,6 +102,7 @@ function drawHitboxes(){
   }
   for(const poly of [plateauScreen,rampScreen]){polygon(poly);ctx.fillStyle='rgba(96,230,190,.07)';ctx.strokeStyle='#6bd9b4';ctx.fill();ctx.stroke();}
   for(const [a,b] of [[rampScreen[0],rampScreen[1]],[rampScreen[3],rampScreen[2]]])line(a,b,'#c9f5e6',[3,3]);
+  for(const u of crew){const p=project(u);ctx.fillStyle='#ffffff';ctx.fillRect(Math.round(p.x)-1,Math.round(p.y)-1,3,3);}
   ctx.restore();
 }
 function drawGrid(){

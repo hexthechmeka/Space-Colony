@@ -40,6 +40,12 @@ for(const lane of [.15,.5,.85])for(const t of [-.4,-.1,0,.0001,.004,.02,.3,.9]){
   assert.ok(actorDepth(p)>rampDepth,'ramp entry must not cover actors before/after gaining height');
 }
 const pillarDepth=obstacles.find(o=>o.id==='pillar').depth;
+for(const p of [point(650,265),point(660,273),point(720,274)]){
+  assert.equal(surface(p).id,'ground');
+  assert.ok(actorDepth(p)>rampDepth,'ground actors beside the entry must render in front based on feet');
+}
+assert.ok(actorDepth(point(650,230))<rampDepth,'feet behind the extended entry edge must stay behind');
+assert.equal(actorDepth(point(680,550)),550,'entry ordering must not lower normal ground depth');
 assert.ok(actorDepth(behindPillar)<pillarDepth,'pillar must still cover actors behind it');
 assert.ok(actorDepth(frontPillar)>pillarDepth,'actors in front of pillar must remain visible');
 assert.ok(actorDepth(point(735,205))<rampDepth,'ground behind the ramp must remain behind terrain');

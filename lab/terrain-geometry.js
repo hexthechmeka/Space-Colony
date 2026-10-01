@@ -51,13 +51,14 @@ export function surface(p) {
 }
 export const heightAt = p => surface(p).z;
 export function actorDepth(p) {
-  const {progress,lateral}=rampCoordinates(p);
-  const entryReach=40/distance(ramp[0],ramp[3]),sideMargin=12/distance(ramp[0],ramp[1]);
-  // The entry lip is behind an approaching actor, even before their feet gain height.
-  const inFrontOfEntry=progress<=0&&progress>=-entryReach&&lateral>=-sideMargin&&lateral<=1+sideMargin;
+  const [left,,width]=terrainSprites.find(o=>o.id==='ramp').draw;
+  const entryY=ramp[0].y+(p.x-ramp[0].x)*(ramp[1].y-ramp[0].y)/(ramp[1].x-ramp[0].x);
+  // Actor coordinates are feet: the entry's front half-plane includes its flanks.
+  const inFrontOfEntry=p.x>=left-RADIUS&&p.x<=left+width+RADIUS&&p.y>=entryY;
   const onSurface=surface(p).id!=='ground';
   const surfaceDepth=Math.max(...terrainSprites.map(o=>o.depth))+1;
-  return onSurface||inFrontOfEntry?surfaceDepth+p.y*.001:p.y;
+  if(onSurface)return surfaceDepth+p.y*.001;
+  return inFrontOfEntry?Math.max(p.y,surfaceDepth+p.y*.001):p.y;
 }
 export const project = p => point(p.x,p.y-(p.z??heightAt(p))*HEIGHT_PIXELS);
 export const rampScreen = ramp.map((p,i)=>project({...p,z:i<2?0:2}));
