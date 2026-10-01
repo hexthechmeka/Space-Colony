@@ -19,6 +19,21 @@
 
 ## 에셋
 
+- `assets/terrain/drafts/natural-cover-atlas-v1.png`: 추가 자연 엄폐물 여섯 종류. 실제 1536×1024이며 생성 결과에 맞춰 개별 소스 영역과 발 접점을 지정했다.
+- 추가 침엽수 8개, 넓은 수관 나무 6개, 활성 간헐천 3개, 휴면 분화구 3개, 반투명 결정 3개, 낮은 식생 7개.
+
+## 시야와 탄환 차폐
+
+- 초록: 보이고 사격 경로 확보. 주황: 보이지만 사격 경로 차폐. 빨강: 선택 대원 시야 차단.
+- 무기 사거리는 별도로 판단한다. 경로가 열려 있어도 사거리 밖이면 발사하지 않는다.
+- `visionHeight`, `shotHeight`는 장애물이 서 있는 지면 기준 높이다. 시야는 눈에서 눈으로, 사격은 총구에서 표적 몸통으로 검사한다.
+- `visionHit`, `shotHit`, 이동용 `hit`를 따로 쓸 수 있다. 나무 수관은 넓은 시야 차폐 범위, 뿌리는 작은 이동 충돌 범위를 사용한다.
+- 반투명 결정은 시야를 통과시키고 탄환을 막는다. 가스는 시야를 막지만 기체 자체는 탄환을 막지 않으며 바닥의 낮은 분출구만 고체로 취급한다.
+- 낮은 식생은 걸어 지나갈 수 있다. 고지대에서 낮은 장애물을 넘는 광선은 통과하고, 여전히 광선보다 높은 장애물은 차단한다.
+- 분대원이 대신 발견한 적은 공격 명령을 공유할 수 있지만, 각 대원의 실제 탄도 차폐와 사거리는 따로 검사한다.
+- 표적 판정 패널은 검증용으로 시야 거리 내 숨은 표적도 차단 상태로 표시한다. 실제 화면의 안개 속 위치를 드러내지는 않는다.
+- 간헐천은 현재 고정 분출 상태다. 분출 주기, 독성 피해, 바람과 가스 확산은 아직 없다.
+
 - `assets/terrain/drafts/regolith-tile-v1.png`: 자연 지면 반복 텍스처.
 - `assets/terrain/drafts/nature-atlas-v1.png`: 투명 배경 암석/광맥/식생/현무암 2×2 시트. 실제 출력 1254×1254, 셀 627×627.
 - 기존 `terrain-spritesheet-v3.png`의 자연 암석, 바위 기둥, 고지대와 경사로도 재사용한다. 금속 벽/인공 기둥은 사용하지 않는다.
@@ -29,6 +44,12 @@
 `node tests/field-map.mjs`, `node tests/field-assets.mjs`, `node tests/terrain-demo.mjs`, `node tests/terrain-weapons.mjs`
 
 ## 생성 요청문
+
+### 추가 자연 엄폐물
+
+Use case: stylized-concept. Production low-resolution pixel-art game atlas for a pristine uninhabited alien planet, top-down camera with small visible front faces, NOT isometric diamond perspective. Exact 3 columns by 2 rows, six equal square cells, output landscape1536x1024. No labels, no grid lines, no border, no text, no artificial objects. ALL background actually transparent alpha0, no painted black background, no checkerboard, no glows, no haze behind sprites. Limited muted moss green, blue-green leaves, charcoal volcanic stone, pale turquoise crystals. Hard 1990s strategy-game pixels, no smooth painting. Every asset fully within its own cell with generous transparent margins and bottom foot contact at local y410 of512. TOP LEFT: a tall alien conifer tree, visible dark trunk and compact layered dull green needles. TOP MIDDLE: a wide alien broadleaf tree with twisted trunk and dense dark blue-green crown. TOP RIGHT: active natural gas geyser, small volcanic vent at base and a compact vertical pale green-gray opaque steam plume, pale pixel clusters not blurred glow, fully contained within cell. BOTTOM LEFT: dormant rocky gas vent, low cracked volcanic mound with a small dark opening and no plume. BOTTOM MIDDLE: a low broad cluster of pale semi-transparent faceted mineral slabs/crystals among stones, enough transparent gaps between slabs to see through. BOTTOM RIGHT: low alien grass and fern patch. Consistent lighting from upper left, crisp silhouettes, natural wilderness only. Shadows tightly attached to ground contacts.
+
+투명 배경과 셀 내부 배치를 정리하는 이미지 편집을 한 번 수행했다. 모든 생성/편집에는 내장 이미지 생성 도구를 사용했다.
 
 ### 자연 시트
 

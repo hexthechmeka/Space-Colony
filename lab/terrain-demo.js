@@ -121,7 +121,7 @@ function drawVision(now){
   if(now-visionTime>100){visionTime=now;visionShapes=(allVision?crew:[crew[selected]]).map(u=>{
     const from=eye(u),points=[];
     for(let i=0;i<192;i++){const a=i*Math.PI*2/192,to={x:u.x+Math.cos(a)*VISION_RANGE,y:u.y+Math.sin(a)*VISION_RANGE,z:from.z};
-      const hit=raycast(from,to),end=hit??to;points.push(project({...end,z:0}));}
+      const hit=raycast(from,to,'vision'),end=hit??to;points.push(project({...end,z:0}));}
     return {u,points};
   });}
   ctx.save();for(const {points} of visionShapes){polygon(points);ctx.fillStyle=allVision?'rgba(76,218,169,.055)':'rgba(76,218,169,.10)';ctx.fill();ctx.strokeStyle='rgba(96,238,190,.20)';ctx.lineWidth=1;ctx.stroke();}ctx.restore();

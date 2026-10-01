@@ -97,7 +97,7 @@ function insideObstacle(o,p,r=0) {
 }
 function blocked(p,r=RADIUS) {
   return p.x<r||p.y<r||p.x>WIDTH-r||p.y>HEIGHT-r||
-    obstacles.some(o=>insideObstacle(o,p,r))||barriers.some(([a,b])=>segmentDistance(p,a,b)<r);
+    obstacles.some(o=>!o.passable&&insideObstacle(o,p,r))||barriers.some(([a,b])=>segmentDistance(p,a,b)<r);
 }
 function canTravel(a,b,r=RADIUS) {
   const steps=Math.max(1,Math.ceil(distance(a,b)/2));
@@ -109,12 +109,18 @@ function canTravel(a,b,r=RADIUS) {
   }
   return true;
 }
-function raycast(a,b) {
+const rayObjects=obstacles.map(o=>({...o,baseZ:heightAt(o.hit?point(o.hit[0],o.hit[1]):o.poly[0])}));
+function raycast(a,b,channel='shot') {
   const steps=Math.max(1,Math.ceil(distance(a,b)/3));
   for(let i=1;i<steps;i++) {
     const t=i/steps,p={x:mix(a.x,b.x,t),y:mix(a.y,b.y,t),z:mix(a.z,b.z,t)};
     if(heightAt(p)>p.z+.03) return {...p,name:'절벽 / 경사면'};
-    const o=obstacles.find(o=>o.height>p.z+.03&&insideObstacle(o,p));
+    const o=rayObjects.find(o=>{
+      const h=channel==='vision'?(o.visionHeight??o.height):(o.shotHeight??o.height);
+      const hit=channel==='vision'?o.visionHit:o.shotHit;
+      return h>0&&o.baseZ+h>p.z+.03&&
+        insideObstacle(hit?{hit}:o,p);
+    });
     if(o) return {...p,name:o.name};
   }
   return null;

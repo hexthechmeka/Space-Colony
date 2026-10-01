@@ -6,6 +6,10 @@ import {createCamera,clampCamera,screenToWorld,zoomCamera} from './field-camera.
 const ui=Object.fromEntries(['view','minimap','loading','status','order','crew','weapon','readout','targets',
   'follow','fog','hits','range','zoom','zoomValue','zone','zones','stop','reset'].map(id=>[id,document.getElementById(id)]));
 const ctx=ui.view.getContext('2d'),mini=ui.minimap.getContext('2d'),W=960,H=600;
+const contactLabels={clear:'보임 · 사격 경로 확보',visible:'보임 · 사격 경로 차폐',hidden:'시야 완전 차단'};
+const contactColors={clear:'#76ddba',visible:'#e3b562',hidden:'#e18884'};
+const legend=document.createElement('div');legend.style.cssText='font-size:11px;margin-top:9px';
+for(const [state,label] of Object.entries(contactLabels)){const row=document.createElement('div');row.textContent=label;row.style.color=contactColors[state];legend.appendChild(row);}ui.targets.after(legend);
 const camera=createCamera(field.width,field.height,W,H),rules=createWeaponRules(field);
 const textures={},names=['반 하이드','오르타','두골','마르타'],colors=['#dfc56e','#8fc879','#d59b62','#90a6b6'];
 let crew=[],enemies=[],selected=0,target=null,order=null,shots=[],ready=false,last=performance.now(),visionAt=0,visions=[];
@@ -42,7 +46,7 @@ function refreshVision(now){
   if(now-visionAt<160)return;visionAt=now;
   visions=crew.map(u=>{const from=rules.eye(u),points=[];
     for(let i=0;i<96;i++){const angle=i*Math.PI*2/96,to={x:u.x+Math.cos(angle)*VISION_RANGE,y:u.y+Math.sin(angle)*VISION_RANGE,z:from.z};
-      const hit=field.raycast(from,to);points.push(point((hit??to).x,(hit??to).y));}
+      const hit=field.raycast(from,to,'vision');points.push(point((hit??to).x,(hit??to).y));}
     return points;});
   memory.fillStyle='#ffffff';for(const points of visions){poly(memory,points);memory.fill();}
   fogCtx.globalCompositeOperation='source-over';fogCtx.clearRect(0,0,field.width,field.height);
@@ -78,6 +82,11 @@ function actor(u,enemy=false){
 function drawHits(){
   ctx.strokeStyle='#ed897c';ctx.lineWidth=1/camera.zoom;
   for(const o of field.obstacles){if(o.poly)poly(ctx,o.poly);else{ctx.beginPath();ctx.ellipse(...o.hit,0,0,Math.PI*2);}ctx.stroke();}
+  for(const o of field.obstacles){if(o.visionHeight===undefined)continue;
+    for(const [hit,color] of [[o.visionHit,'#87bdda'],[o.shotHit??o.hit,'#e3b562']]){
+      ctx.strokeStyle=color;ctx.beginPath();ctx.ellipse(...hit,0,0,Math.PI*2);ctx.stroke();}
+    ctx.fillStyle='#d4e8df';ctx.font='9px monospace';ctx.fillText(`시야 ${o.visionHeight} / 탄환 ${o.shotHeight}`,o.hit[0]-35,o.hit[1]+16);
+  }
   ctx.strokeStyle='#8edfc5';for(const points of [field.rampScreen,field.plateauScreen]){poly(ctx,points);ctx.stroke();}
   for(const u of crew){const p=field.project(u);ctx.fillStyle='#fff';ctx.fillRect(p.x-1,p.y-1,3,3);}
 }
@@ -108,13 +117,23 @@ function draw(){
   const u=crew[selected],w=WEAPONS[u.weapon],foot=field.project(u);
   if(ui.range.checked){ctx.strokeStyle='rgba(105,185,226,.55)';ctx.lineWidth=1/camera.zoom;ctx.setLineDash([5,7]);ctx.beginPath();ctx.arc(foot.x,foot.y,w.range,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(ui.hits.checked)drawHits();
+  for(const e of enemies){if(e.hp<=0||!known(e)||distance(u,e)>VISION_RANGE)continue;
+    const state=rules.visibilityState(u,e),p=field.project(e);ctx.fillStyle=contactColors[state];ctx.font='10px monospace';ctx.fillText(contactLabels[state],p.x-35,p.y-34);
+    if(state!=='hidden'){
+      const check=rules.firingState(u,e,true);
+      if(check.a)line(field.project(check.a),field.project(check.hit??check.b),contactColors[state],[3,5]);
+    }
+  }
   for(const s of shots){line(s.a,s.b,s.beam?'#81dcff':'#e9d798');}
   ctx.restore();drawMini();
   ui.readout.textContent=`${u.name}\n시야 ${VISION_RANGE} · 사거리 ${w.range}\n좌표 ${Math.round(u.x)}, ${Math.round(u.y)} · 고도 ${field.heightAt(u).toFixed(1)}`;
   ui.status.textContent=`${crew.filter(u=>u.path.length).length}명 이동 · 잔여 표적 ${enemies.filter(e=>e.hp>0).length}`;
   ui.zoomValue.textContent=`${Math.round(camera.zoom*100)}%`;ui.zoom.value=Math.round(camera.zoom*100);
-  const visible=enemies.filter(e=>e.hp>0&&known(e));
-  ui.targets.textContent=visible.length?visible.map(e=>`표적 ${e.id+1} · ${STATUS[rules.firingState(u,e,true).status]}`).join('\n'):'발견된 표적 없음';
+  const nearby=enemies.filter(e=>e.hp>0&&distance(u,e)<=VISION_RANGE);
+  ui.targets.textContent=nearby.length?nearby.map(e=>{
+    const state=rules.visibilityState(u,e),fire=rules.firingState(u,e,known(e));
+    return `표적 ${e.id+1} · ${contactLabels[state]}${fire.status==='far'?' · '+STATUS.far:''}`;
+  }).join('\n'):'시야 거리 내 표적 없음';
   ui.zone.textContent=ZONES.reduce((a,b)=>distance(a,u)<distance(b,u)?a:b).name;
 }
 for(const [key,w] of Object.entries(WEAPONS)){const o=document.createElement('option');o.value=key;o.textContent=w.name;ui.weapon.appendChild(o);}
@@ -152,7 +171,7 @@ function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(ready){
   update(dt,now);draw();crew.forEach((u,i)=>ui.crew.children[i].querySelector('small').textContent=WEAPONS[u.weapon].name);
 }requestAnimationFrame(frame);}requestAnimationFrame(frame);
 async function load(){
-  for(const [key,url] of Object.entries({terrain:'../assets/terrain/drafts/terrain-spritesheet-v3.png',nature:'../assets/terrain/drafts/nature-atlas-v1.png',ground:'../assets/terrain/drafts/regolith-tile-v1.png'})){
+  for(const [key,url] of Object.entries({terrain:'../assets/terrain/drafts/terrain-spritesheet-v3.png',nature:'../assets/terrain/drafts/nature-atlas-v1.png',cover:'../assets/terrain/drafts/natural-cover-atlas-v1.png',ground:'../assets/terrain/drafts/regolith-tile-v1.png'})){
     const image=new Image();image.src=url;await image.decode();textures[key]=image;
   }
   const bg=ground.getContext('2d');bg.imageSmoothingEnabled=false;

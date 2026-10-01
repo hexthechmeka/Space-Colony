@@ -26,6 +26,27 @@ function naturalFeature(type,x,y){
 }
 naturalFeature('ore',430,535);naturalFeature('ore',1185,625);naturalFeature('ore',1595,185);
 for(const [x,y] of [[250,780],[570,800],[720,570],[900,955],[1220,330],[1430,685],[1730,550]])naturalFeature('shrub',x,y);
+function coverFeature(type,x,y){
+  const specs={
+    pine:{name:'침엽수',src:[0,0,512,600],size:[100,170],foot:.96,hit:[14,10],vision:4.8,shot:4.8,visionRadius:[34,20]},
+    tree:{name:'넓은 수관 나무',src:[512,0,560,600],size:[150,170],foot:.96,hit:[20,12],vision:4.4,shot:4.4,visionRadius:[48,28]},
+    geyser:{name:'가스 간헐천',src:[1072,0,464,600],size:[100,170],foot:.96,hit:[20,12],vision:4.8,shot:.4,visionRadius:[36,24]},
+    vent:{name:'휴면 분화구',src:[0,600,512,424],size:[105,85],foot:.8,hit:[30,18],vision:.45,shot:.45},
+    crystal:{name:'반투명 결정',src:[512,600,512,424],size:[120,110],foot:.8,hit:[34,16],vision:0,shot:1.6},
+    grass:{name:'낮은 식생',src:[1024,600,512,424],size:[85,65],foot:.8,hit:[0,0],vision:.2,shot:.2},
+  };
+  const s=specs[type],[w,h]=s.size;
+  objects.push({id:`${type}-${objects.length}`,kind:type,name:s.name,atlas:'cover',src:s.src,
+    draw:[x-w/2,y-h*s.foot,w,h],hit:[x,y,...s.hit],height:Math.max(s.vision,s.shot),
+    visionHeight:s.vision,shotHeight:s.shot,visionHit:[x,y,...(s.visionRadius??[w*.25,h*.12])],
+    ...(type==='grass'?{passable:true,shotHit:[x,y,20,10]}:{}),depth:y});
+}
+for(const [x,y] of [[300,1030],[440,980],[340,490],[460,440],[700,350],[860,890],[1260,980],[1650,710]])coverFeature('pine',x,y);
+for(const [x,y] of [[260,825],[590,360],[780,980],[1270,210],[1510,790],[1790,530]])coverFeature('tree',x,y);
+for(const [x,y] of [[850,550],[1380,650],[1600,920]])coverFeature('geyser',x,y);
+for(const [x,y] of [[590,1050],[940,835],[1580,610]])coverFeature('vent',x,y);
+for(const [x,y] of [[490,625],[1100,620],[1460,300]])coverFeature('crystal',x,y);
+for(const [x,y] of [[215,960],[400,775],[570,530],[760,710],[1070,850],[1400,890],[1800,680]])coverFeature('grass',x,y);
 export const field=createTerrain({width:MAP_WIDTH,height:MAP_HEIGHT,cell:8,
   plateau:plateau.map(shift),ramp:ramp.map(shift),terrainSprites:topSprites,obstacles:objects});
 export const ZONES=[
