@@ -1,12 +1,12 @@
 # Codex 인수인계
 
-마지막 갱신: 2026-10-01 (한국 시간)
+마지막 갱신: 2026-10-16 (한국 시간)
 
 ## 먼저 확인할 사항
 
 - 리포지토리: https://github.com/hexthechmeka/Space-Colony
 - 작업 브랜치: `codex/terrain-visibility-demo`
-- 이전 구현 기준 커밋: `e7e1b25`. 현재 문서와 함께 모듈형 경계 기반 고저차 테스트 맵을 커밋한다. 최신 번호는 `git log -1 --oneline`으로 확인한다.
+- 최신 게임 구현 기준 커밋: `1257742`. 이번 변경은 초상화/UI 시안과 원본 프로토타입 v3의 보존 및 이 문서 갱신이다. 게임 로직은 수정하지 않았다. 최신 백업 커밋 번호는 `git log -1 --oneline`으로 확인한다.
 - 현재 목표는 자연 지형에서 이동, 시야, 사격과 조작감을 검증하는 전투 시연이다. 완성 게임이나 본편 이식 완료 상태가 아니다.
 - 사용자는 충분한 설계 상담 후 구현하기를 원한다. 새로운 시스템을 제안했다고 바로 구현하지 말 것.
 - 업로드할 때마다 이 문서를 갱신하고 변경 파일과 함께 커밋한다. 테스트를 실행하지 않았으면 이전 검증 결과를 새 결과처럼 기록하지 않는다.
@@ -14,6 +14,13 @@
 ## 다른 컴퓨터에서 시작
 
 리포지토리를 받은 뒤 작업 브랜치로 전환한다. 기존 변경이 있으면 먼저 확인하고 보존한다.
+
+처음 받는 컴퓨터에서는 다음처럼 브랜치를 지정해 복제한다.
+
+```sh
+git clone --branch codex/terrain-visibility-demo https://github.com/hexthechmeka/Space-Colony.git
+cd Space-Colony
+```
 
 ```sh
 git fetch origin
@@ -23,21 +30,29 @@ npm run dev
 ```
 
 - 기본 시연: `http://127.0.0.1:5173/lab/field-map.html`
+- 원본 조작 프로토타입 v3: `http://127.0.0.1:5173/lab/controls.html`
 - 새 고저차 시연: `http://127.0.0.1:5173/lab/field-map.html?terrain=elevation`
 - 지형 판정실: `http://127.0.0.1:5173/lab/terrain-demo.html`
 - 본편: `http://127.0.0.1:5173/`
 - 포트가 사용 중이면 Vite가 안내한 실제 포트를 사용한다. 이전 컴퓨터의 서버나 브라우저 상태는 이동하지 않는다.
 - 이 문서는 대화 세션 전체의 복제본이 아니다. 코드와 결정 사항을 새 Codex 세션에 인계하기 위한 요약이다.
 
-### 아직 깃허브에 없는 로컬 파일
+### 2026-10-16 추가 백업
 
-현재 다음 경로는 미추적 상태이며, 이 문서 업로드에도 포함하지 않는다.
+사용자가 이 컴퓨터를 곧 사용하지 못하게 되어, 명시적인 요청에 따라 다음 8개 파일을 원본 내용 그대로 작업 브랜치에 추가했다.
 
-- `assets/portraits/`: 초상화 시안 및 제작 메모
-- `assets/ui/`: 사용자 인터페이스 시안 및 제작 메모
-- `lab/controls.html`: 사용자가 옮겨 둔 원본 전투 조작 프로토타입 v3
+- `assets/portraits/drafts/face-bases-v1.png`
+- `assets/portraits/drafts/mouth-expressions-v1.png`
+- `assets/portraits/drafts/제작메모.md`
+- `assets/ui/drafts/battle-lcd-hud-v2.png`
+- `assets/ui/drafts/battle-portraits-hud-v1.png`
+- `assets/ui/drafts/제작메모.md`
+- `assets/ui/drafts/LCD-시안-메모.md`
+- `lab/controls.html`: 사용자가 옮겨 둔 원본 전투 조작 프로토타입 v3. 최신 지형 시연과 별도이며 과거 설계와 조작 의도를 확인하기 위한 자료다.
 
-다른 컴퓨터에서 이 자료가 필요하면 별도 전달 또는 명시적인 커밋 요청이 필요하다. 최신 `field-map.html` 시연과 그 자연 지형 에셋은 작업 브랜치에 있다.
+이제 위 자료도 리포지토리 복제로 받을 수 있다. 최신 `field-map.html` 시연과 자연 지형 에셋도 같은 브랜치에 있다. 별도 다운로드 폴더의 첨부 원본, 리포지토리 밖 생성 이미지, 로컬 세이브 및 Codex 대화 기록까지 백업한 것은 아니다. `node_modules`와 빌드 산출물은 복제 후 설치/빌드한다.
+
+이번 변경은 보존용이므로 게임 동작 테스트를 다시 실행하지 않는다. 추가 파일 목록과 커밋 내용, 원격 브랜치 동기화를 확인한다. 이전 테스트 결과는 아래 기록을 참고한다.
 
 ## 코드 안내
 
