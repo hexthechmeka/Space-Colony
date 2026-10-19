@@ -1,0 +1,63 @@
+:root{color-scheme:dark;--ink:#c6dad3;--cyan:#79d6cd;--line:#405454;--panel:#0d1719;--hud-size:118px}
+*{box-sizing:border-box;letter-spacing:0}
+body{margin:0;background:#080e10;color:var(--ink);font:13px/1.4 "Malgun Gothic",system-ui,sans-serif;overflow:hidden}
+button,select{font:inherit}button{cursor:pointer;color:var(--ink)}
+button:focus-visible,select:focus-visible{outline:2px solid #b0f8e5;outline-offset:3px}
+button:disabled{cursor:default;opacity:.4}[hidden]{display:none!important}
+#battle-stage{position:relative;width:100%;height:100dvh;overflow:hidden}
+#view{display:block;width:100%;height:100%;image-rendering:pixelated;touch-action:none}
+#loading{position:absolute;inset:0;display:grid;place-items:center;background:#0d1719;z-index:20}
+.mission-header{position:absolute;inset:0 0 auto;display:grid;grid-template-columns:1fr minmax(240px,360px) 1fr;align-items:start;gap:20px;padding:22px 26px 45px;background:linear-gradient(#050b0de6,transparent);pointer-events:none}
+.mission-header>*{min-width:0}.overline{display:block;font-size:10px;color:#8caaa3}
+.sector{display:block;font-size:16px;margin-top:5px}.link-state{display:block;font-size:11px;margin-top:8px;color:#a6ce8d}
+.mission-objective{text-align:center}.mission-objective strong{display:block;font-size:18px;font-weight:500;margin:3px 0 8px}
+.objective-bottom{display:flex;align-items:center;gap:10px}.objective-bottom span{font:12px monospace;min-width:32px}
+.objective-bottom progress{width:100%;height:5px;border:0;background:#23302f;accent-color:#8ad7bd}
+.objective-bottom progress::-webkit-progress-bar{background:#23302f}.objective-bottom progress::-webkit-progress-value{background:#8ad7bd}
+.top-tools{display:flex;gap:14px;align-items:center;justify-content:flex-end;pointer-events:auto}.top-tools>span{font:12px monospace;color:#92aaa4}
+.icon-button{display:inline-grid;place-items:center;flex:0 0 38px;width:38px;height:38px;padding:8px;background:#101b1ddc;border:1px solid var(--line);border-radius:2px}
+.icon-button svg{width:19px;height:19px;stroke-width:1.5}.icon-button:hover{border-color:var(--cyan);background:#213735}
+.map-hud{position:absolute;right:26px;top:88px;width:190px}.map-title{display:flex;gap:5px;justify-content:space-between;font-size:10px;margin-bottom:5px;color:#8ba7a1}
+.map-title span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#minimap{display:block;width:100%;aspect-ratio:12/7;background:#071112;border:1px solid #47605c;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+.objective-action{display:flex;align-items:center;gap:7px;margin-top:12px;margin-left:auto;background:transparent;border:0;padding:5px;color:#a8dacc;font-size:12px}.objective-action svg{width:18px;height:18px}
+.bottom-hud{position:absolute;bottom:20px;left:24px;right:24px;display:flex;align-items:flex-end;gap:22px;justify-content:space-between;pointer-events:none}
+.crew{display:grid;grid-template-columns:repeat(4,minmax(0,var(--hud-size)));gap:14px;pointer-events:auto}
+.crew button{position:relative;width:var(--hud-size);height:calc(var(--hud-size) + 60px);padding:0;border:0;background:none;text-align:left}
+.crew button b{position:absolute;bottom:-2px;left:0;right:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#8ba7a1;font-weight:400}
+.crew button small{position:absolute;top:21px;font-size:9px;color:#8fa9a1;line-height:1.1}
+.crew .portrait-frame{position:absolute;left:0;right:0;bottom:22px;height:var(--hud-size);border:2px solid #475652;box-shadow:inset 0 0 0 2px #101919;background:#172326;overflow:hidden}
+.crew button.active .portrait-frame{border-color:var(--cyan);box-shadow:0 0 5px #68dbc02b,inset 0 0 0 2px #0c181a}
+.portrait-frame canvas{display:block;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;filter:saturate(.65) contrast(.92)}
+.portrait-frame:after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(transparent 0px,transparent 3px,#0a1b202e 3px,#0a1b202e 4px);box-shadow:inset 0 0 10px #08151894}
+.crew .health{position:absolute;left:4px;right:4px;bottom:13px;height:5px;background:#24312c;box-shadow:0 0 0 1px #0b1513}.crew .health i{display:block;width:100%;height:100%;background:#aacd81}
+.crew .slot{position:absolute;top:38px;left:6px;z-index:1;color:#a9bdb6;font:9px monospace}
+.weapon-mark{position:absolute;top:0;left:0;width:59px;height:19px;image-rendering:pixelated;opacity:.9;mix-blend-mode:screen}
+.crew button>span:not(.portrait-frame):not(.health):not(.slot){position:absolute;right:0;top:0;font:13px monospace;color:#dae8df}
+.crew meter{position:absolute;top:4px;right:44px;height:9px!important;width:32px!important;accent-color:#83d6e3}
+.crew button:has(meter:not([hidden])) .weapon-mark{width:38px}
+.command-tools{display:flex;gap:7px;pointer-events:auto;flex-wrap:wrap;max-width:180px}
+.field-message{position:absolute;bottom:calc(var(--hud-size) + 100px);left:26px;right:240px;pointer-events:none;font-size:11px;color:#a0b7ac;text-shadow:0 1px #000}
+.field-message span{background:#0b181b99;padding:5px 8px;border-left:2px solid #688e84}
+dialog{width:min(370px,calc(100vw - 32px));padding:24px;border:1px solid #4e6f68;border-radius:4px;background:#111d20;color:var(--ink)}
+dialog::backdrop{background:#02080bbb;backdrop-filter:blur(3px)}
+.dialog-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;gap:12px}.dialog-heading h1{font-size:18px;font-weight:500;margin:0}
+.menu-command{display:block;width:100%;margin-top:10px;padding:11px;border:1px solid #365b52;background:#172e2b;text-align:left}.menu-command:hover{border-color:#80cbb7}
+dialog select{width:100%;margin:8px 0 12px;padding:9px;background:#0c1719;color:var(--ink);border:1px solid #405b52}
+#readout{white-space:pre-line;font-size:11px;color:#8aa69b}#equipment-panel input[type=range]{width:100%}#equipment-panel label{font-size:12px}
+#menu-result{font-size:13px;color:#a2c6b5}#equipment-panel label:has(+input){display:block;margin-top:12px}
+@media(min-width:1600px){:root{--hud-size:140px}.crew{gap:18px}}
+@media(max-height:600px), (max-width:850px){
+  :root{--hud-size:84px}.mission-header{padding:12px 16px 24px;gap:12px;grid-template-columns:1fr minmax(170px,260px) 1fr}.overline{font-size:9px}.sector{font-size:13px}.mission-objective strong{font-size:14px}
+  .map-hud{right:16px;top:66px;width:140px}.bottom-hud{bottom:12px;left:16px;right:16px;gap:12px}.crew{gap:10px}.command-tools{max-width:90px;gap:5px}
+  .icon-button{width:32px;height:32px;flex-basis:32px;padding:6px}.field-message{left:16px;right:170px;bottom:calc(var(--hud-size) + 88px)}
+  .crew button>span:not(.portrait-frame):not(.health):not(.slot){font-size:10px}.weapon-mark{width:42px;height:15px}.crew button small{font-size:8px;top:18px}
+  .crew meter{width:18px!important;right:33px}.crew button:has(meter:not([hidden])) .weapon-mark{width:26px}
+}
+@media(max-width:520px){
+  :root{--hud-size:66px}.mission-header{grid-template-columns:1fr auto;gap:16px}.mission-origin{display:none}.mission-objective{text-align:left}.map-hud{top:94px;width:120px;right:12px}
+  .bottom-hud{left:10px;right:10px;gap:6px}.crew{gap:6px}.crew button{height:calc(var(--hud-size) + 55px)}.crew button small{font-size:7px}
+  .command-tools{max-width:66px;gap:3px}.command-tools .icon-button{width:28px;height:28px;flex-basis:28px}.field-message{bottom:calc(var(--hud-size) + 78px);left:10px;right:135px}
+  .crew button b{font-size:8px}.crew meter{width:13px!important;right:27px}.crew button:has(meter:not([hidden])) .weapon-mark{width:20px}
+  .crew button>span:not(.portrait-frame):not(.health):not(.slot){font-size:8px}.weapon-mark{width:34px;height:12px}
+}

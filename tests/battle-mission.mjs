@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {createBattleMission} from '../lab/battle-mission.js';
+const site={x:1000,y:1000},lz={x:100,y:100},mission=createBattleMission(site,lz);
+const crew=[{...lz},{...lz}],enemy={...site,hp:8};
+mission.tick(20,crew,[enemy]);assert.equal(mission.snapshot().progress,0);
+crew.forEach(u=>Object.assign(u,site));mission.tick(20,crew,[enemy]);assert.equal(mission.snapshot().progress,0,'nearby hostile prevents securing the objective');
+enemy.hp=0;mission.tick(5,crew,[enemy]);assert.equal(mission.snapshot().progress,41);
+crew.forEach(u=>Object.assign(u,lz));mission.tick(2,crew,[enemy]);assert.equal(mission.snapshot().progress,41,'leaving the site pauses capture');
+crew.forEach(u=>Object.assign(u,site));mission.tick(7,crew,[enemy]);assert.equal(mission.snapshot().stage,'return');
+Object.assign(crew[0],lz);mission.tick(1,crew,[]);assert.equal(mission.snapshot().stage,'return','all members must return');
+Object.assign(crew[1],lz);mission.tick(1,crew,[]);assert.equal(mission.snapshot().stage,'complete');
+const elapsed=mission.snapshot().elapsed;mission.tick(10,crew,[]);assert.equal(mission.snapshot().elapsed,elapsed);
+mission.reset();assert.equal(mission.snapshot().progress,0);assert.equal(mission.snapshot().elapsed,0);
+console.log('PASS: objective proximity, hostile clearance, timed capture, all-member return and mission reset');

@@ -7,17 +7,22 @@ import {WEAPONS,STATUS,createWeaponRules} from './terrain-weapons.js';
 import {createCamera,clampCamera,centerCamera,edgeCameraDirection,screenToWorld,zoomCamera} from './field-camera.js';
 import {drawGeyser} from './geyser-animation.js';
 import {drawFog,MEMORY_COLOR,MEMORY_OPACITY,FOG_EDGE_BLUR,VISION_REFRESH_MS,terrainObjectVisible} from './field-fog.js';
+import {createBattleMission} from './battle-mission.js';
+import {mountBattleHUD} from './battle-hud.js';
 
 const ui=Object.fromEntries(['view','minimap','loading','status','order','crew','weapon','readout','targets',
   'follow','fog','hits','range','zoom','zoomValue','zone','zones','stop','reset'].map(id=>[id,document.getElementById(id)]));
-const ctx=ui.view.getContext('2d'),mini=ui.minimap.getContext('2d'),W=960,H=600;
+const battleMode=document.body.dataset.battle==='true';
+let W=battleMode?1280:960,H=battleMode?720:600;
+const ctx=ui.view.getContext('2d'),mini=ui.minimap.getContext('2d');
+if(battleMode){ui.view.width=W;ui.view.height=H;}
 const elevationMode=new URLSearchParams(location.search).get('terrain')==='elevation';
 const {field,LZ,SITE,ZONES,CREW_START,ENEMY_START}=elevationMode?elevationMap:originalMap;
-const mapLink=document.createElement('a');mapLink.href=elevationMode?'./field-map.html':'./field-map.html?terrain=elevation';mapLink.textContent=elevationMode?'기존 자연 지형':'고저차 지형';document.querySelector('header').append(mapLink);
+if(!battleMode){const mapLink=document.createElement('a');mapLink.href=elevationMode?'./field-map.html':'./field-map.html?terrain=elevation';mapLink.textContent=elevationMode?'기존 자연 지형':'고저차 지형';document.querySelector('header').append(mapLink);}
 let deploymentZone=ZONES[0];
 const sightToggle=document.createElement('input'),sightLabel=document.createElement('label');
-sightToggle.type='checkbox';sightToggle.checked=elevationMode;sightLabel.append(sightToggle,document.createTextNode('개인 시야'));ui.range.parentElement.after(sightLabel);
-if(elevationMode){const deploy=document.createElement('button');deploy.textContent='관측 지점에 분대 배치';deploy.style.cssText='width:100%;margin-top:6px';ui.zones.after(deploy);
+sightToggle.type='checkbox';sightToggle.checked=elevationMode&&!battleMode;sightLabel.append(sightToggle,document.createTextNode('개인 시야'));ui.range.parentElement.after(sightLabel);
+if(elevationMode&&!battleMode){const deploy=document.createElement('button');deploy.textContent='관측 지점에 분대 배치';deploy.style.cssText='width:100%;margin-top:6px';ui.zones.after(deploy);
   deploy.onclick=()=>{if(!ready)return;stop();
     const used=[];
     for(const u of crew){
@@ -33,6 +38,8 @@ const contactColors={clear:'#76ddba',visible:'#e3b562',hidden:'#e18884'};
 const legend=document.createElement('div');legend.style.cssText='font-size:11px;margin-top:9px';
 for(const [state,label] of Object.entries(contactLabels)){const row=document.createElement('div');row.textContent=label;row.style.color=contactColors[state];legend.appendChild(row);}ui.targets.after(legend);
 const camera=createCamera(field.width,field.height,W,H),rules=createWeaponRules(field);
+const mission=createBattleMission(SITE,LZ);let battleHUD=null;
+if(battleMode)new ResizeObserver(([entry])=>{H=Math.round(W*entry.contentRect.height/entry.contentRect.width);ui.view.height=H;ctx.imageSmoothingEnabled=false;camera.vh=H;clampCamera(camera);}).observe(ui.view);
 const squadMovement=createSquadMovement(field);
 const combat=createFieldCombat(field,{known:e=>known(e)});
 const textures={},names=['반 하이드','오르타','두골','마르타'],colors=['#dfc56e','#8fc879','#d59b62','#90a6b6'];
@@ -55,13 +62,14 @@ ctx.imageSmoothingEnabled=false;mini.imageSmoothingEnabled=false;
 ui.view.style.cursor='crosshair';
 function poly(c,points){c.beginPath();points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();}
 function line(a,b,color,dash=[],width=1){ctx.strokeStyle=color;ctx.lineWidth=width/camera.zoom;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);}
-function select(i){manual=null;selected=i;crew.forEach(u=>{u.selected=u.id===i;});visionAt=-Infinity;knownCache.clear();hudAt=-Infinity;ui.weapon.value=crew[i].weapon;skillSlider.value=crew[i].skill*100;[...ui.crew.children].forEach((b,n)=>b.classList.toggle('active',n===i));}
+function select(i){manual=null;selected=i;crew.forEach(u=>{u.selected=u.id===i;});visionAt=-Infinity;knownCache.clear();hudAt=-Infinity;ui.weapon.value=crew[i].weapon;skillSlider.value=crew[i].skill*100;[...ui.crew.children].forEach((b,n)=>{b.classList.toggle('active',n===i);b.setAttribute('aria-pressed',String(n===i));});}
 function stop(){target=null;manual=null;order=null;squadMovement.stop(crew);crew.forEach(combat.cancel);ui.order.textContent='명령 중지';}
 function reset(){
+  mission.reset();battleHUD?.reset();
   edgePointer=null;spaceHeld=false;deploymentZone=ZONES[0];knownCache.clear();hudAt=-Infinity;
   discoveredObjects.clear();visibleObjects.clear();
   discoveredEdges.clear();visibleEdges.clear();
-  crew=CREW_START.map((p,id)=>({...p,id,name:names[id],color:colors[id],eye:1.2,skill:[.65,.8,.55,.7][id],weapon:['pistol','sniper','rifle','pdw'][id],path:[]}));crew.forEach(combat.equip);
+  crew=CREW_START.map((p,id)=>({...p,id,name:names[id],color:colors[id],eye:1.2,hp:100,maxHp:100,skill:[.65,.8,.55,.7][id],weapon:(battleMode?['rifle','sniper','shotgun','pdw']:['pistol','sniper','rifle','pdw'])[id],path:[]}));crew.forEach(combat.equip);
   enemies=ENEMY_START.map((p,id)=>({...p,id,eye:.65,hp:8}));target=null;manual=null;order=null;shots=[];memory.clearRect(0,0,field.width,field.height);
   camera.edgeCenter=false;camera.x=LZ.x;camera.y=LZ.y;camera.zoom=1;clampCamera(camera);ui.follow.checked=true;ui.zoom.value=100;
   select(0);visionAt=-Infinity;visionStamp=null;ui.order.textContent='착륙 완료';
@@ -105,6 +113,7 @@ function update(dt,now){
   for(const u of crew)emit(combat.tick(u,dt,fireIntent(u),enemies));
   if(target&&target.hp<=0){target=null;ui.order.textContent='표적 제압';}
   shots=shots.filter(s=>(s.life-=dt)>0);refreshVision(now);
+  if(battleMode)mission.tick(dt,crew,enemies);
   if(spaceHeld||ui.follow.checked){const foot=field.project(crew[selected]),t=spaceHeld?1:Math.min(1,dt*7);camera.x+=(foot.x-camera.x)*t;camera.y+=(foot.y-camera.y)*t;}
   clampCamera(camera);
   if(order&&crew.every(u=>!u.path.length)){ui.order.textContent=crew.some(u=>u.stuck)?'이동 중단':'목적지 도착';order=null;}
@@ -149,7 +158,7 @@ function draw(now){
   ctx.clearRect(0,0,W,H);ctx.fillStyle='#000000';ctx.fillRect(0,0,W,H);ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);
   ctx.drawImage(ground,0,0);
   if(ui.fog.checked){ctx.imageSmoothingEnabled=true;ctx.drawImage(fogCanvas,0,0,field.width,field.height);ctx.imageSmoothingEnabled=false;}
-  for(const z of [LZ,SITE]){ctx.strokeStyle='#87bcc5';ctx.lineWidth=1;ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(z.x,z.y,45,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+  for(const z of [LZ,SITE]){const p=field.project(z);ctx.strokeStyle='#87bcc5';ctx.lineWidth=1;ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(p.x,p.y,45,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   ctx.strokeStyle='rgba(148,217,203,.45)';ctx.lineWidth=1/camera.zoom;ctx.beginPath();
   for(const u of crew){let p=u;const start=field.project(p);ctx.moveTo(start.x,start.y);for(const q of u.path){
     const steps=Math.max(1,Math.ceil(distance(p,q)/4));
@@ -171,7 +180,7 @@ function draw(now){
   if(sightToggle.checked){ctx.strokeStyle='rgba(139,224,171,.7)';ctx.lineWidth=1/camera.zoom;ctx.setLineDash([2,5]);ctx.beginPath();ctx.arc(foot.x,foot.y,rules.visionRange(u),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(ui.range.checked){ctx.strokeStyle='rgba(105,185,226,.55)';ctx.lineWidth=1/camera.zoom;ctx.setLineDash([5,7]);ctx.beginPath();ctx.arc(foot.x,foot.y,w.range,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(ui.hits.checked)drawHits();
-  for(const e of enemies){if(e.hp<=0||!known(e)||distance(u,e)>rules.visionRange(u))continue;
+  if(!battleMode)for(const e of enemies){if(e.hp<=0||!known(e)||distance(u,e)>rules.visionRange(u))continue;
     const state=rules.visibilityState(u,e),p=field.project(e);ctx.fillStyle=contactColors[state];ctx.font='10px monospace';ctx.fillText(contactLabels[state],p.x-35,p.y-34);
     if(state!=='hidden'){
       const check=rules.firingState(u,e,true);
@@ -192,6 +201,7 @@ function draw(now){
     return `표적 ${e.id+1} · ${contactLabels[state]}${fire.status==='far'?' · '+STATUS.far:''}`;
   }).join('\n'):'시야 거리 내 표적 없음';
   ui.zone.textContent=ZONES.reduce((a,b)=>distance(a,u)<distance(b,u)?a:b).name;
+  battleHUD?.update({crew,selected,mission,engaged:shots.length>0||target?.hp>0});
   return true;
 }
 for(const [key,w] of Object.entries(WEAPONS)){const o=document.createElement('option');o.value=key;o.textContent=w.name;ui.weapon.appendChild(o);}
@@ -219,7 +229,7 @@ function command(p,canvasPosition){
 }
 ui.view.oncontextmenu=e=>e.preventDefault();
 ui.view.onpointerdown=e=>{
-  if(!ready)return;const p=canvasPoint(e);ui.view.setPointerCapture(e.pointerId);
+  if(!ready||battleHUD?.paused)return;const p=canvasPoint(e);ui.view.setPointerCapture(e.pointerId);
   if(e.button===1||e.pointerType==='touch'){drag={p,start:p,x:camera.x,y:camera.y,touch:e.pointerType==='touch',moved:false};return;}
   if(e.button===2)move(field.pickGround(screenToWorld(camera,p)));else if(e.button===0)command(screenToWorld(camera,p),p);
 };
@@ -232,13 +242,16 @@ ui.view.addEventListener('wheel',e=>{e.preventDefault();zoomCamera(camera,camera
 ui.minimap.onpointerdown=e=>{const r=ui.minimap.getBoundingClientRect();ui.follow.checked=false;camera.x=(e.clientX-r.left)/r.width*field.width;camera.y=(e.clientY-r.top)/r.height*field.height;clampCamera(camera);};
 addEventListener('keydown',e=>{
   if(!ready||e.target.isContentEditable||['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+  if(battleMode&&e.code==='Escape'){e.preventDefault();if(!e.repeat)battleHUD.togglePause();return;}
+  if(battleHUD?.paused)return;
   if(e.code==='Space'){e.preventDefault();spaceHeld=true;edgePointer=null;if(!e.repeat)centerCamera(camera,field.project(crew[selected]));return;}
   if(e.repeat)return;
-  if(e.target.tagName==='BUTTON')return;keys.add(e.key.toLowerCase());
+  if(!battleMode&&e.target.tagName==='BUTTON')return;keys.add(e.key.toLowerCase());
   if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();
   if(e.key>='1'&&e.key<='4')select(+e.key-1);if(e.key==='Escape')stop();if(e.key.toLowerCase()==='m')ui.follow.checked=!ui.follow.checked;
 });addEventListener('keyup',e=>{if(e.code==='Space')spaceHeld=false;keys.delete(e.key.toLowerCase());});addEventListener('blur',()=>{spaceHeld=false;keys.clear();manual=null;drag=null;edgePointer=null;});
 function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(ready){
+  if(battleHUD?.paused){draw(now);requestAnimationFrame(frame);return;}
   let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
   if(!dx&&!dy&&!drag&&!spaceHeld){const edge=edgeCameraDirection(edgePointer);dx=edge.x;dy=edge.y;}
   if(dx||dy){ui.follow.checked=false;camera.x+=dx*400*dt/camera.zoom;camera.y+=dy*400*dt/camera.zoom;}
@@ -248,11 +261,17 @@ function frame(now){const dt=Math.min(.04,(now-last)/1000);last=now;if(ready){
     ammoLabels[i].textContent=w.battery?`예비 ${u.gun.reserve}`:`${u.gun.ammo} / ${u.gun.reserve}`;
   });
 }requestAnimationFrame(frame);}requestAnimationFrame(frame);
+if(battleMode)battleHUD=mountBattleHUD({ui,
+  onCenter:()=>{centerCamera(camera,field.project(crew[selected]));ui.follow.checked=true;},
+  onGoal:()=>{const goal=field.project(mission.snapshot().goal);ui.follow.checked=false;camera.x=goal.x;camera.y=goal.y;clampCamera(camera);},
+  onPause:()=>{manual=null;keys.clear();spaceHeld=false;edgePointer=null;},onReset:reset,
+});
 async function load(){
-  for(const [key,url] of Object.entries({terrain:'../assets/terrain/drafts/terrain-spritesheet-v3.png',nature:'../assets/terrain/drafts/nature-atlas-v1.png',cover:'../assets/terrain/drafts/natural-cover-atlas-v1.png',ground:'../assets/terrain/drafts/regolith-tile-v1.png'})){
+  for(const [key,url] of Object.entries({terrain:new URL('../assets/terrain/drafts/terrain-spritesheet-v3.png',import.meta.url).href,nature:new URL('../assets/terrain/drafts/nature-atlas-v1.png',import.meta.url).href,cover:new URL('../assets/terrain/drafts/natural-cover-atlas-v1.png',import.meta.url).href,ground:new URL('../assets/terrain/drafts/regolith-tile-v1.png',import.meta.url).href})){
     const image=new Image();image.src=url;await image.decode();textures[key]=image;
   }
-  if(elevationMode){const image=new Image();image.src='../assets/terrain/drafts/elevation-textures-v1.png';await image.decode();textures.elevation=image;}
+  if(elevationMode){const image=new Image();image.src=new URL('../assets/terrain/drafts/elevation-textures-v1.png',import.meta.url).href;await image.decode();textures.elevation=image;}
+  if(battleHUD)await battleHUD.assets;
   const bg=ground.getContext('2d');bg.imageSmoothingEnabled=false;
   for(const sprite of sprites){
     const image=document.createElement('canvas');image.width=sprite.src[2];image.height=sprite.src[3];
